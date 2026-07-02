@@ -1,7 +1,9 @@
 """GerryDB session management."""
 
 import asyncio
+import hashlib
 import os
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -10,16 +12,15 @@ from typing import Any, Optional, Union
 import geopandas as gpd
 import httpx
 import pandas as pd
-from pandas.core.indexes.base import Index as pdIndex
 import tomlkit
-from rapidfuzz import process, fuzz
 from geoalchemy2.elements import WKBElement
+from pandas.core.indexes.base import Index as pdIndex
+from rapidfuzz import fuzz, process
 from shapely.geometry import Polygon
-import hashlib
-import weakref
 
 from gerrydb.cache import GerryCache
 from gerrydb.exceptions import ConfigError
+from gerrydb.logging import log
 from gerrydb.repos import (
     ColumnRepo,
     ColumnSetRepo,
@@ -48,7 +49,6 @@ from gerrydb.schemas import (
     ViewMeta,
     ViewTemplate,
 )
-from gerrydb.logging import log
 
 DEFAULT_GERRYDB_ROOT = Path(os.path.expanduser("~")) / ".gerrydb"
 
@@ -157,16 +157,14 @@ class GerryDB:
                 configs = tomlkit.parse(config_raw)
             except tomlkit.exceptions.TOMLKitError as ex:
                 raise ConfigError(
-                    "Failed to parse GerryDB configuration at "
-                    f"{GERRYDB_ROOT.resolve()}."
+                    f"Failed to parse GerryDB configuration at {GERRYDB_ROOT.resolve()}."
                 ) from ex
 
             try:
                 config = configs[profile]
             except KeyError:
                 raise ConfigError(
-                    f'Profile "{profile}" not found in configuration '
-                    f"at {GERRYDB_ROOT.resolve()}."
+                    f'Profile "{profile}" not found in configuration at {GERRYDB_ROOT.resolve()}.'
                 )
 
             for field in ("host", "key"):
@@ -193,9 +191,7 @@ class GerryDB:
             key = config["key"]
 
         self._base_url = (
-            f"http://{host}/api/v1"
-            if host.startswith("localhost")
-            else f"https://{host}/api/v1"
+            f"http://{host}/api/v1" if host.startswith("localhost") else f"https://{host}/api/v1"
         )
         self._base_headers = {"User-Agent": "gerrydb-client-py", "X-API-Key": key}
         self._transport = httpx.HTTPTransport(retries=1)
@@ -290,9 +286,7 @@ class GerryDB:
     @property
     def view_templates(self) -> ViewTemplateRepo:
         """View templates."""
-        return ViewTemplateRepo(
-            schema=ViewTemplate, base_url="/view-templates", session=self
-        )
+        return ViewTemplateRepo(schema=ViewTemplate, base_url="/view-templates", session=self)
 
 
 @dataclass
@@ -350,23 +344,17 @@ class WriteContext:
     @property
     def column_sets(self) -> ColumnSetRepo:
         """Column sets."""
-        return ColumnSetRepo(
-            schema=ColumnSet, base_url="/column-sets", session=self.db, ctx=self
-        )
+        return ColumnSetRepo(schema=ColumnSet, base_url="/column-sets", session=self.db, ctx=self)
 
     @property
     def geo(self) -> GeoLayerRepo:
         """Geographies."""
-        return GeographyRepo(
-            schema=Geography, base_url="/geographies", session=self.db, ctx=self
-        )
+        return GeographyRepo(schema=Geography, base_url="/geographies", session=self.db, ctx=self)
 
     @property
     def geo_layers(self) -> GeoLayerRepo:
         """Geographic layers."""
-        return GeoLayerRepo(
-            schema=GeoLayer, base_url="/layers", session=self.db, ctx=self
-        )
+        return GeoLayerRepo(schema=GeoLayer, base_url="/layers", session=self.db, ctx=self)
 
     @property
     def graphs(self) -> GraphRepo:
@@ -748,9 +736,7 @@ class WriteContext:
 
         log.debug(columns)
         if not (
-            isinstance(columns, list)
-            or isinstance(columns, pdIndex)
-            or isinstance(columns, dict)
+            isinstance(columns, list) or isinstance(columns, pdIndex) or isinstance(columns, dict)
         ):
             raise TypeError(
                 f"The 'columns' parameter must be a list of paths, a "
@@ -815,9 +801,7 @@ class WriteContext:
         allow_empty_polys: bool,
     ):
 
-        if not isinstance(df, gpd.GeoDataFrame) and (
-            create_geos or patch_geos or upsert_geos
-        ):
+        if not isinstance(df, gpd.GeoDataFrame) and (create_geos or patch_geos or upsert_geos):
             raise TypeError(
                 "Cannot create or update geographies from a non-geodataframe. "
                 "Please convert the dataframe to a geodataframe before calling this method."
@@ -828,14 +812,10 @@ class WriteContext:
 
         if create_geos or upsert_geos:
             if locality is None:
-                raise ValueError(
-                    "Locality must be provided when creating or upserting Geos"
-                )
+                raise ValueError("Locality must be provided when creating or upserting Geos")
 
             if layer is None:
-                raise ValueError(
-                    "GeoLayer must be provided when creating or upserting Geos"
-                )
+                raise ValueError("GeoLayer must be provided when creating or upserting Geos")
 
         assert (
             isinstance(create_geos, bool)
@@ -941,9 +921,7 @@ class WriteContext:
         namespace = self.db.namespace if namespace is None else namespace
 
         if include_geos and not ("geometry" in df.columns):
-            raise ValueError(
-                "`include_geos` is True, but no 'geometry' column found in dataframe."
-            )
+            raise ValueError("`include_geos` is True, but no 'geometry' column found in dataframe.")
 
         if not include_geos:
             if "geometry" in df.columns:
@@ -963,9 +941,9 @@ class WriteContext:
             if "geometry" in df.columns:
                 df.to_crs(epsg=4269, inplace=True)
             if "internal_point" in df.columns:
-                df["internal_point"] = gpd.GeoSeries(
-                    df["internal_point"], crs=current_proj
-                ).to_crs(epsg=4269)
+                df["internal_point"] = gpd.GeoSeries(df["internal_point"], crs=current_proj).to_crs(
+                    epsg=4269
+                )
 
         if not isinstance(locality, Locality):
             locality = self.db.localities[locality]

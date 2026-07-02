@@ -1,13 +1,15 @@
 """Tests for views."""
 
-import pytest
-import networkx as nx
-from gerrydb.repos.view import _load_gpkg_geometry, View
-from gerrydb.exceptions import ViewLoadError
 from io import BytesIO
 from pathlib import Path
+
 import geopandas as gpd
+import networkx as nx
+import pytest
 from httpx import HTTPError
+
+from gerrydb.exceptions import ViewLoadError
+from gerrydb.repos.view import View, _load_gpkg_geometry
 
 
 def graphs_equal(G1: nx.Graph, G2: nx.Graph) -> bool:
@@ -94,9 +96,9 @@ def ia_view_with_graph(client_with_ia_layer_loc, ia_graph):
 def test_view_repo_view_to_dataframe(ia_view, ia_dataframe):
     view_df = ia_view.to_df()
     assert set(view_df.index) == set(ia_dataframe.index)
-    assert set(view_df.columns) == set(
-        "/".join(col.split("/")[2:]) for col in ia_view.values
-    ) | {"geometry"}
+    assert set(view_df.columns) == set("/".join(col.split("/")[2:]) for col in ia_view.values) | {
+        "geometry"
+    }
 
 
 @pytest.mark.vcr
@@ -105,14 +107,10 @@ def test_view_repo_view_to_graph(ia_view_with_graph, ia_graph):
 
     assert graphs_equal(view_graph, ia_graph)
 
-    expected_cols = set(
-        "/".join(col.split("/")[2:]) for col in ia_view_with_graph.values
-    )
+    expected_cols = set("/".join(col.split("/")[2:]) for col in ia_view_with_graph.values)
     # Previous tests in the test suite can add some values to the graph nodes.
     # so we just check that the expected columns are present.
-    assert all(
-        expected_cols - set(data) == set() for _, data in view_graph.nodes(data=True)
-    )
+    assert all(expected_cols - set(data) == set() for _, data in view_graph.nodes(data=True))
 
 
 @pytest.mark.vcr
@@ -121,21 +119,18 @@ def test_view_repo_view_to_graph_geo(ia_view_with_graph, ia_graph):
 
     assert graphs_equal(view_graph, ia_graph)
 
-    expected_cols = set(
-        "/".join(col.split("/")[2:]) for col in ia_view_with_graph.values
-    ) | {"internal_point", "geometry"}
+    expected_cols = set("/".join(col.split("/")[2:]) for col in ia_view_with_graph.values) | {
+        "internal_point",
+        "geometry",
+    }
 
     # Previous tests in the test suite can add some values to the graph nodes.
     # so we just check that the expected columns are present.
-    assert all(
-        expected_cols - set(data) == set() for _, data in view_graph.nodes(data=True)
-    )
+    assert all(expected_cols - set(data) == set() for _, data in view_graph.nodes(data=True))
 
 
 def test_bad_gpkg_geometry__None():
-    with pytest.raises(
-        ValueError, match="Invalid GeoPackage geometry: empty geometry."
-    ):
+    with pytest.raises(ValueError, match="Invalid GeoPackage geometry: empty geometry."):
         _load_gpkg_geometry(None)
 
 
@@ -143,9 +138,7 @@ def test_bad_gpkg_geometry__badbytes():
     bad_flags = (7 << 1) & 0xFF  # == 14 == 0x0e
 
     bad_blob = b"GP" + bytes([0x01, bad_flags]) + b"\x00" * (4 + 4 + 10)
-    with pytest.raises(
-        ValueError, match="Invalid GeoPackage geometry: bad envelope flag."
-    ):
+    with pytest.raises(ValueError, match="Invalid GeoPackage geometry: bad envelope flag."):
         _load_gpkg_geometry(bad_blob)
 
 
@@ -156,9 +149,7 @@ def test_from_gpkg__gpkg_bytes():
     view = View.from_gpkg(buffer)
 
     view_df = view.to_df(internal_points=True)
-    other_df = gpd.read_parquet(
-        Path(__file__).parents[1] / "fixtures" / "test_land_df.parquet"
-    )
+    other_df = gpd.read_parquet(Path(__file__).parents[1] / "fixtures" / "test_land_df.parquet")
     view_df.sort_index(inplace=True)
     other_df.sort_index(inplace=True)
 
@@ -174,18 +165,14 @@ def test_from_gpkg__gpkg_base():
     view_df = view.to_df(internal_points=True)
 
     assert view_df.equals(
-        gpd.read_parquet(
-            Path(__file__).parents[1] / "fixtures" / "test_land_df.parquet"
-        )
+        gpd.read_parquet(Path(__file__).parents[1] / "fixtures" / "test_land_df.parquet")
     )
 
 
 def test_from_gpkg__missing_meta():
     gpkg_path = Path(__file__).parents[1] / "fixtures" / "test_land_missing_keys.gpkg"
 
-    with pytest.raises(
-        ViewLoadError, match="Does the GeoPackage have GerryDB extensions?"
-    ):
+    with pytest.raises(ViewLoadError, match="Does the GeoPackage have GerryDB extensions?"):
         View.from_gpkg(gpkg_path)
 
 

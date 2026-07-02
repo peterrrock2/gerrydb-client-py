@@ -1,16 +1,17 @@
 """Integration/VCR tests for columns."""
 
 import json
-import pytest
-from shapely import box
-import httpx
-from types import SimpleNamespace as _BaseNS
 from http import HTTPStatus
-from httpx import HTTPStatusError
+from types import SimpleNamespace as _BaseNS
 
-from gerrydb.repos.geography import AsyncGeoImporter, GeographyRepo
-from gerrydb.exceptions import RequestError, ForkingError
+import httpx
+import pytest
+from httpx import HTTPStatusError
+from shapely import box
+
 from gerrydb import GerryDB
+from gerrydb.exceptions import ForkingError, RequestError
+from gerrydb.repos.geography import AsyncGeoImporter, GeographyRepo
 
 
 class SimpleNamespace(_BaseNS):
@@ -26,9 +27,7 @@ class SimpleNamespace(_BaseNS):
 def test_geography_repo_create(client_ns):
     with client_ns.context(notes="adding a geography") as ctx:
         with ctx.geo.bulk() as bulk_ctx:
-            geos = bulk_ctx.create(
-                {f"{idx:010d}": box(0, 0, 1, 1) for idx in range(10000)}
-            )
+            geos = bulk_ctx.create({f"{idx:010d}": box(0, 0, 1, 1) for idx in range(10000)})
 
     assert all([geo.geography == box(0, 0, 1, 1) for geo in geos])
 
@@ -122,9 +121,7 @@ def test_check_get_layer_hashes_raises_error_on_bad_path():
 
     dummy_self = SimpleNamespace(
         base_url="/foo",
-        request=lambda method, url, params=None: (_ for _ in ()).throw(
-            RuntimeError("boom")
-        ),
+        request=lambda method, url, params=None: (_ for _ in ()).throw(RuntimeError("boom")),
     )
 
     with pytest.raises(RuntimeError, match="Failed to get layer hashes."):

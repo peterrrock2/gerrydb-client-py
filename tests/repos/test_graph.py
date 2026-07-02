@@ -1,20 +1,22 @@
 """Integration/VCR tests for dual graphs."""
 
+from io import BytesIO
+from pathlib import Path
+
+import geopandas as gpd
+import httpx
 import networkx as nx
+import pytest
+import shapely
+from shapely import LineString, Point, Polygon
+
+from gerrydb.exceptions import GraphCreateError, GraphLoadError
 from gerrydb.repos.graph import (
-    _load_gpkg_geometry,
     _GPKG_ENVELOPE_BYTES,
     DBGraph,
     GraphRepo,
+    _load_gpkg_geometry,
 )
-from gerrydb.exceptions import GraphLoadError, GraphCreateError
-import pytest
-from shapely import Point, LineString, Polygon
-import shapely
-from pathlib import Path
-from io import BytesIO
-import geopandas as gpd
-import httpx
 
 
 def graphs_equal(G1: nx.Graph, G2: nx.Graph) -> bool:
@@ -40,8 +42,7 @@ def test_graph_repo_create_get__valid(client_with_ia_layer_loc, ia_graph):
             graph=ia_graph,
         )
         saved_edges = {
-            (path_1.split("/")[-1], path_2.split("/")[-1])
-            for path_1, path_2 in graph.graph.edges
+            (path_1.split("/")[-1], path_2.split("/")[-1]) for path_1, path_2 in graph.graph.edges
         }
         sorted_saved_edges = set([tuple(sorted(edge)) for edge in saved_edges])
         sorted_ia_graph_edges = set([tuple(sorted(edge)) for edge in ia_graph.edges])
@@ -180,12 +181,10 @@ def test_graph_with_geometry():
     # Test that the graph is loaded correctly with geometry
     gpkg_path = FIXTURES / "test_graph.gpkg"
 
-    gdf = gpd.read_file(gpkg_path, layer="me_10_county_dual__geometry").set_index(
+    gdf = gpd.read_file(gpkg_path, layer="me_10_county_dual__geometry").set_index("path")
+    gdf_internal = gpd.read_file(gpkg_path, layer="me_10_county_dual__internal_points").set_index(
         "path"
     )
-    gdf_internal = gpd.read_file(
-        gpkg_path, layer="me_10_county_dual__internal_points"
-    ).set_index("path")
 
     graph = DBGraph.from_gpkg(gpkg_path)
 

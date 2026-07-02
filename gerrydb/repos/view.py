@@ -1,22 +1,25 @@
 """Repository for views."""
 
-import json
 import io
+import json
 import sqlite3
+import tempfile
+import time
+import weakref
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Generator, Optional, Union
-import tempfile
 
 import geopandas as gpd
 import networkx as nx
+import numpy as np
 import pandas as pd
 import shapely.wkb
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
-import weakref
 
 from gerrydb.exceptions import ViewLoadError
+from gerrydb.logging import log
 from gerrydb.repos.base import (
     NamespacedObjectRepo,
     namespaced,
@@ -37,10 +40,6 @@ from gerrydb.schemas import (
     ViewMeta,
     ViewTemplate,
 )
-from gerrydb.logging import log
-import numpy as np
-import time
-
 
 _EXPECTED_META_KEYS = {
     "namespace",
@@ -146,9 +145,7 @@ class View:
                 mem = sqlite3.connect(":memory:")
                 sql = raw.decode("utf-8")
                 if sqlite3.sqlite_version_info < (3, 33, 0):
-                    sql = sql.replace(
-                        "sqlite_schema", "sqlite_master"
-                    )  # pragma: no cover
+                    sql = sql.replace("sqlite_schema", "sqlite_master")  # pragma: no cover
 
                 mem.executescript(sql)
 
@@ -166,8 +163,7 @@ class View:
 
         log.debug("Loading view from %s", path)
         tables = conn.execute(
-            "SELECT name FROM sqlite_master WHERE "
-            "type ='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchall()
         missing_tables = _EXPECTED_TABLES - set(table[0] for table in tables)
         if missing_tables:
@@ -193,9 +189,7 @@ class View:
         #         log.warning(f"Failed to close connection: {e}")
         return ret
 
-    def to_df(
-        self, plans: bool = False, internal_points: bool = False
-    ) -> gpd.GeoDataFrame:
+    def to_df(self, plans: bool = False, internal_points: bool = False) -> gpd.GeoDataFrame:
         """Loads the view as a GeoDataFrame."""
         log.debug("The gpkg path is %s", self._gpkg_path)
         log.debug("The layer is %s", self.path)
@@ -219,12 +213,8 @@ class View:
                 .set_index("path")
                 .rename(columns={"geometry": "internal_point"})
             )
-            internal_points_gdf["internal_point"] = internal_points_gdf[
-                "internal_point"
-            ].map(
-                lambda x: (
-                    x if (x is not None) and (x != Point(np.nan, np.nan)) else Point()
-                )
+            internal_points_gdf["internal_point"] = internal_points_gdf["internal_point"].map(
+                lambda x: x if (x is not None) and (x != Point(np.nan, np.nan)) else Point()
             )
             gdf = gdf.join(internal_points_gdf)
 
@@ -258,9 +248,7 @@ class View:
                     f"ON {self.path}.path =  gerrydb_plan_assignment.path"
                 )
                 columns += plan_columns
-                prefixed_columns += [
-                    f"gerrydb_plan_assignment.{col}" for col in plan_columns
-                ]
+                prefixed_columns += [f"gerrydb_plan_assignment.{col}" for col in plan_columns]
 
         if geometry:
             # Join geographic layers: add internal points.
@@ -298,9 +286,7 @@ class View:
         raw_edges = self._conn.execute(
             "SELECT path_1, path_2, weights from gerrydb_graph_edge"
         ).fetchall()
-        graph.add_edges_from(
-            (edge[0], edge[1], json.loads(edge[2])) for edge in raw_edges
-        )
+        graph.add_edges_from((edge[0], edge[1], json.loads(edge[2])) for edge in raw_edges)
 
         # Self-check: make sure the generated query didn't lose any nodes.
         node_count = self._conn.execute(f"SELECT COUNT(*) FROM {self.path}").fetchone()
@@ -340,9 +326,7 @@ class View:
     @property
     def geographies(self) -> Generator[Geography, None, None]:
         """Yields geographies in the view."""
-        raw_geo_meta = self._conn.execute(
-            "SELECT meta_id, value FROM gerrydb_geo_meta"
-        ).fetchone()
+        raw_geo_meta = self._conn.execute("SELECT meta_id, value FROM gerrydb_geo_meta").fetchone()
         geo_meta = {raw_geo_meta[0]: ObjectMeta(**json.loads(raw_geo_meta[1]))}
 
         raw_geos = self._conn.execute(
@@ -434,14 +418,10 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         payload = ViewCreate(
             path=path,
             template=template if isinstance(template, str) else template.full_path,
-            locality=(
-                locality if isinstance(locality, str) else locality.canonical_path
-            ),
+            locality=(locality if isinstance(locality, str) else locality.canonical_path),
             layer=layer if isinstance(layer, str) else layer.full_path,
             graph=(
-                None
-                if graph is None
-                else (graph if isinstance(graph, str) else graph.full_path)
+                None if graph is None else (graph if isinstance(graph, str) else graph.full_path)
             ),
             valid_at=valid_at,
             proj=proj,

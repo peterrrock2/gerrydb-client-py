@@ -1,9 +1,11 @@
-import pytest
-import pandas as pd
-import geopandas as gpd
 from types import SimpleNamespace as _BaseNS
-from gerrydb.client import GerryDB, WriteContext
+
+import geopandas as gpd
+import pandas as pd
+import pytest
 from shapely.geometry import Polygon
+
+from gerrydb.client import GerryDB, WriteContext
 
 # disable both “unused mocks” and “unexpected requests” errors
 pytestmark = pytest.mark.httpx_mock(
@@ -86,10 +88,7 @@ def test_create_geos_already_exists_httpx(httpx_mock):
 
     resp = exc.value.__cause__ or exc.value
     assert hasattr(resp, "response")
-    assert (
-        resp.response.json()["detail"]
-        == "Cannot create geographies that already exist."
-    )
+    assert resp.response.json()["detail"] == "Cannot create geographies that already exist."
 
 
 def test_update_geos_already_exists_httpx(httpx_mock):
@@ -137,10 +136,7 @@ def test_update_geos_already_exists_httpx(httpx_mock):
 
     resp = exc.value.__cause__ or exc.value
     assert hasattr(resp, "response")
-    assert (
-        resp.response.json()["detail"]
-        == "Cannot create geographies that already exist."
-    )
+    assert resp.response.json()["detail"] == "Cannot create geographies that already exist."
 
 
 def test_validate_geo_compatabilty_empty_polys_but_not_explicitly_allowed(
@@ -511,9 +507,7 @@ def test_validate_columsn_bad_column_type(httpx_mock):
         cache_max_size_gb=0.001,
     )
     ctx = WriteContext(db=db, notes="trigger")
-    with pytest.raises(
-        TypeError, match="The 'columns' parameter must be a list of paths,"
-    ):
+    with pytest.raises(TypeError, match="The 'columns' parameter must be a list of paths,"):
         ctx._WriteContext__validate_columns(columns=1)
 
 

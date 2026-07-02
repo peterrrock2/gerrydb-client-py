@@ -1,10 +1,10 @@
-import pytest
 import os
-from unittest import mock
 from pathlib import Path
 from types import SimpleNamespace as _BaseNS
-import pytest
+from unittest import mock
+
 import httpx
+import pytest
 
 import gerrydb.client as client_mod
 from gerrydb.client import GerryDB, WriteContext

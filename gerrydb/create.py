@@ -41,9 +41,7 @@ def geo_layer(path: str, description: str, namespace: str, source_url: Optional[
     db = GerryDB(namespace=namespace)
     with db.context(notes=f'Creating geographic layer "{path}" from CLI') as ctx:
         try:
-            ctx.geo_layers.create(
-                path=path, description=description, source_url=source_url
-            )
+            ctx.geo_layers.create(path=path, description=description, source_url=source_url)
         except ResultError as e:
             if "Failed to create geographic layer" in e.args[0]:
                 print(f"Failed to create {path} layer, already exists")

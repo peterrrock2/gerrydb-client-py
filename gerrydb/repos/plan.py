@@ -59,16 +59,10 @@ class PlanRepo(NamespacedObjectRepo[Plan]):
                 source_url=source_url,
                 districtr_id=districtr_id,
                 daves_id=daves_id,
-                locality=(
-                    locality.canonical_path
-                    if isinstance(locality, Locality)
-                    else locality
-                ),
+                locality=(locality.canonical_path if isinstance(locality, Locality) else locality),
                 layer=layer.full_path if isinstance(layer, GeoLayer) else layer,
                 assignments={
-                    geo.full_path if isinstance(geo, Geography) else geo: str(
-                        assignment
-                    )
+                    geo.full_path if isinstance(geo, Geography) else geo: str(assignment)
                     for geo, assignment in assignments.items()
                 },
             ).model_dump(mode="json"),

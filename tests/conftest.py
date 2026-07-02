@@ -2,13 +2,13 @@
 
 import json
 import os
-from pathlib import Path
 import pickle
+from pathlib import Path
 
 import geopandas as gpd
+import networkx as nx
 import pytest
 from networkx.readwrite import json_graph
-import networkx as nx
 
 from gerrydb import GerryDB
 
@@ -61,9 +61,7 @@ def ia_dataframe():
 def ia_graph():
     """NetworkX `Graph` of Iowa counties."""
     graph_path = (
-        Path(__file__).resolve().parent
-        / "fixtures"
-        / "tl_2020_19_county20__rook_epsg26915.json"
+        Path(__file__).resolve().parent / "fixtures" / "tl_2020_19_county20__rook_epsg26915.json"
     )
     with open(graph_path) as graph_fp:
         return json_graph.adjacency_graph(json.loads(graph_fp.read()))
@@ -113,9 +111,7 @@ def client_with_ia_layer_loc(ia_dataframe, ia_column_meta):
     client.namespace = "plan_ns"
 
     with client.context(notes="Importing Iowa counties shapefile") as ctx:
-        columns = {
-            name: ctx.columns.create(**meta) for name, meta in ia_column_meta.items()
-        }
+        columns = {name: ctx.columns.create(**meta) for name, meta in ia_column_meta.items()}
         try:
             layer = ctx.geo_layers.create(
                 path="counties",
@@ -172,9 +168,7 @@ def client_with_census_namespaces_and_columns():
 @pytest.fixture(scope="session")
 def me_2010_gdf():
     """`GeoDataFrame` of Maine 2010 Census blocks."""
-    pkl_path = (
-        Path(__file__).resolve().parent / "fixtures" / "23_county_all_geos_2010.pkl"
-    )
+    pkl_path = Path(__file__).resolve().parent / "fixtures" / "23_county_all_geos_2010.pkl"
 
     with open(pkl_path, "rb") as pkl_fp:
         gdf = pickle.load(pkl_fp)
@@ -185,9 +179,7 @@ def me_2010_gdf():
 @pytest.fixture(scope="session")
 def me_2020_gdf():
     """`GeoDataFrame` of Maine 2020 Census blocks."""
-    pkl_path = (
-        Path(__file__).resolve().parent / "fixtures" / "23_county_all_geos_2020.pkl"
-    )
+    pkl_path = Path(__file__).resolve().parent / "fixtures" / "23_county_all_geos_2020.pkl"
 
     with open(pkl_path, "rb") as pkl_fp:
         gdf = pickle.load(pkl_fp)
@@ -197,11 +189,7 @@ def me_2020_gdf():
 
 @pytest.fixture(scope="session")
 def me_2010_column_tabluation():
-    pkl_path = (
-        Path(__file__).resolve().parent
-        / "fixtures"
-        / "tabular_config_geo_columns_2010.pkl"
-    )
+    pkl_path = Path(__file__).resolve().parent / "fixtures" / "tabular_config_geo_columns_2010.pkl"
 
     with open(pkl_path, "rb") as pkl_fp:
         gdf = pickle.load(pkl_fp)
@@ -211,11 +199,7 @@ def me_2010_column_tabluation():
 
 @pytest.fixture(scope="session")
 def me_2020_column_tabluation():
-    pkl_path = (
-        Path(__file__).resolve().parent
-        / "fixtures"
-        / "tabular_config_geo_columns_2020.pkl"
-    )
+    pkl_path = Path(__file__).resolve().parent / "fixtures" / "tabular_config_geo_columns_2020.pkl"
 
     with open(pkl_path, "rb") as pkl_fp:
         gdf = pickle.load(pkl_fp)

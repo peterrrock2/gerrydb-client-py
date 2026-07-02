@@ -9,19 +9,19 @@ import pytest
 
 from gerrydb.client import GerryDB, WriteContext
 from gerrydb.exceptions import (
+    GerryPathError,
     OnlineError,
+    RequestError,
     ResultError,
     WriteContextError,
-    RequestError,
-    GerryPathError,
 )
 from gerrydb.repos.base import (
+    NamespacedObjectRepo,
     err,
-    online,
-    write_context,
     namespaced,
     normalize_path,
-    NamespacedObjectRepo,
+    online,
+    write_context,
 )
 from gerrydb.schemas import BaseModel
 

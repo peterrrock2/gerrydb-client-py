@@ -1,9 +1,10 @@
-import pytest
-import networkx as nx
 import httpx
-from shapely.geometry import Polygon, Point
-from gerrydb.exceptions import ForkingError
+import networkx as nx
 import pandas as pd
+import pytest
+from shapely.geometry import Point, Polygon
+
+from gerrydb.exceptions import ForkingError
 
 
 def graphs_equal(G1: nx.Graph, G2: nx.Graph) -> bool:
@@ -50,9 +51,7 @@ def test_basic_view(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -73,15 +72,11 @@ def test_basic_view(
         "geometry": "geometry",
         "internal_point": "internal_point",
     }
-    me_2010_gdf = me_2010_gdf.rename(columns=new_col_names).filter(
-        items=new_col_names.values()
-    )
+    me_2010_gdf = me_2010_gdf.rename(columns=new_col_names).filter(items=new_col_names.values())
 
     me_2010_gdf.to_crs(epsg=4267, inplace=True)
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=me_2010_gdf.columns,
@@ -155,9 +150,7 @@ def test_basic_view_with_graph_no_plan(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -174,9 +167,7 @@ def test_basic_view_with_graph_no_plan(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -278,9 +269,7 @@ def test_basic_view_with_graph_and_plan(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -307,9 +296,7 @@ def test_basic_view_with_graph_and_plan(
 
     columns10.update({"total_pop": client.columns["total_pop"]})
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -361,15 +348,9 @@ def test_basic_view_with_graph_and_plan(
     assert land_df["area_land"].equals(me_2010_gdf["ALAND10"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
     assert land_df["geometry"].equals(me_2010_gdf["geometry"])
-    assert (
-        land_df["test_plan"]
-        .astype(int)
-        .equals(pd.Series(me_2010_plan_dict).sort_index())
-    )
+    assert land_df["test_plan"].astype(int).equals(pd.Series(me_2010_plan_dict).sort_index())
     partition_dict = land_view.to_partition_dict(autotally=True)
-    assert set(partition_dict["test_plan"].updaters.keys()) == set(
-        ["cut_edges", "total_pop"]
-    )
+    assert set(partition_dict["test_plan"].updaters.keys()) == set(["cut_edges", "total_pop"])
     assert partition_dict["test_plan"]["total_pop"] == {"0": 684021, "1": 644340}
     assert (
         partition_dict["test_plan"].assignment.to_series().astype(int).to_dict()
@@ -414,9 +395,7 @@ def test_view_repo_fork_column_conflict_with_maine(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -433,9 +412,7 @@ def test_view_repo_fork_column_conflict_with_maine(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -448,9 +425,7 @@ def test_view_repo_fork_column_conflict_with_maine(
     # CHANGE THE NAMESPACE
     # ====================
     client.namespace = census20
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -467,9 +442,7 @@ def test_view_repo_fork_column_conflict_with_maine(
         if col.source in me_2020_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2020_gdf,
             columns=columns20,
@@ -528,9 +501,7 @@ def test_basic_view_no_geos_errors_on_empty_polys(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -549,9 +520,7 @@ def test_basic_view_no_geos_errors_on_empty_polys(
 
     me_2010_gdf = me_2010_gdf.drop(columns=["geometry", "internal_point"])
     with pytest.raises(ValueError, match="No 'geometry' column found in dataframe"):
-        with client.context(
-            notes="Creating a view template and view for Maine counties"
-        ) as ctx:
+        with client.context(notes="Creating a view template and view for Maine counties") as ctx:
             ctx.load_dataframe(
                 df=me_2010_gdf,
                 columns=columns10,
@@ -592,9 +561,7 @@ def test_basic_view_no_geos_and_allow_empty_polys(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -611,9 +578,7 @@ def test_basic_view_no_geos_and_allow_empty_polys(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -692,9 +657,7 @@ def test_patch_view_with_new_geos(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -712,9 +675,7 @@ def test_patch_view_with_new_geos(
     }
 
     me_2010_gdf = me_2010_gdf.drop(columns=["geometry", "internal_point"])
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -725,9 +686,7 @@ def test_patch_view_with_new_geos(
             include_geos=False,
         )
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.update(
                 path=col.target,
@@ -739,9 +698,7 @@ def test_patch_view_with_new_geos(
         for col in me_2020_column_tabluation.columns
         if col.source in me_2020_gdf.columns
     }
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2020_gdf,
             columns=columns20,
@@ -809,9 +766,7 @@ def test_patch_with_empty_polys(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -829,9 +784,7 @@ def test_patch_with_empty_polys(
     }
 
     me_2010_gdf = me_2010_gdf.drop(columns=["geometry", "internal_point"])
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -842,9 +795,7 @@ def test_patch_with_empty_polys(
             include_geos=False,
         )
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.update(
                 path=col.target,
@@ -856,9 +807,7 @@ def test_patch_with_empty_polys(
         for col in me_2020_column_tabluation.columns
         if col.source in me_2020_gdf.columns
     }
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2020_gdf,
             columns=columns20,
@@ -867,9 +816,7 @@ def test_patch_with_empty_polys(
             patch_geos=True,
         )
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -939,9 +886,7 @@ def test_view_empty_polys_both_namespaces(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -958,9 +903,7 @@ def test_view_empty_polys_both_namespaces(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -970,9 +913,7 @@ def test_view_empty_polys_both_namespaces(
         )
 
     me_2010_gdf = me_2010_gdf.drop(columns=["geometry", "internal_point"])
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -987,9 +928,7 @@ def test_view_empty_polys_both_namespaces(
     # CHANGE THE NAMESPACE
     # ====================
     client.namespace = census20
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1006,9 +945,7 @@ def test_view_empty_polys_both_namespaces(
         for col in me_2020_column_tabluation.columns
         if col.source in me_2020_gdf.columns
     }
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2020_gdf,
             columns=columns20,
@@ -1080,9 +1017,7 @@ def test_patching_with_incompatible_geos_causes_fork_error(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1098,9 +1033,7 @@ def test_patching_with_incompatible_geos_causes_fork_error(
         for col in me_2010_column_tabluation.columns
         if col.source in me_2010_gdf.columns
     }
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1113,9 +1046,7 @@ def test_patching_with_incompatible_geos_causes_fork_error(
     # CHANGE THE NAMESPACE
     # ===================
     client.namespace = census20
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1137,9 +1068,7 @@ def test_patching_with_incompatible_geos_causes_fork_error(
         for col in me_2020_column_tabluation.columns
         if col.source in me_2020_gdf.columns
     }
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns20,
@@ -1219,9 +1148,7 @@ def test_several_cross_namespace_views(
     layer20 = client.geo_layers[(census20, "county")]
 
     client.namespace = census10
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1238,9 +1165,7 @@ def test_several_cross_namespace_views(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1253,9 +1178,7 @@ def test_several_cross_namespace_views(
     # CHANGE THE NAMESPACE
     # ===================
     client.namespace = census20
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2020_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1276,9 +1199,7 @@ def test_several_cross_namespace_views(
     me_2020_gdf["geometry"] = me_2010_gdf["geometry"]
     me_2020_gdf["internal_point"] = me_2010_gdf["internal_point"]
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2020_gdf,
             columns=columns20,
@@ -1391,9 +1312,7 @@ def test_basic_view_update_column(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1410,9 +1329,7 @@ def test_basic_view_update_column(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1424,9 +1341,7 @@ def test_basic_view_update_column(
     me_2010_gdf.at[me_2010_gdf.index[0], "ALAND10"] = 10
     me_2010_gdf.at[me_2010_gdf.index[1], "AWATER10"] = 11
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1485,9 +1400,7 @@ def test_basic_view_update_column_bad_geos(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1504,9 +1417,7 @@ def test_basic_view_update_column_bad_geos(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1518,16 +1429,12 @@ def test_basic_view_update_column_bad_geos(
     me_2010_gdf.at[me_2010_gdf.index[0], "ALAND10"] = 10
     me_2010_gdf.at[me_2010_gdf.index[1], "AWATER10"] = 11
     me_2010_gdf["geometry"] = me_2010_gdf.at[me_2010_gdf.index[0], "geometry"]
-    me_2010_gdf["internal_point"] = me_2010_gdf.at[
-        me_2010_gdf.index[0], "internal_point"
-    ]
+    me_2010_gdf["internal_point"] = me_2010_gdf.at[me_2010_gdf.index[0], "internal_point"]
 
     with pytest.raises(
         ValueError, match="Conflicting geometries found in dataframe and passed layer."
     ):
-        with client.context(
-            notes="Creating a view template and view for Maine counties"
-        ) as ctx:
+        with client.context(notes="Creating a view template and view for Maine counties") as ctx:
             ctx.load_dataframe(
                 df=me_2010_gdf,
                 columns=columns10,
@@ -1564,9 +1471,7 @@ def test_basic_view_update_column_no_geos(
 
     client.namespace = census10
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         for col in me_2010_column_tabluation.columns:
             ctx.columns.create(
                 col.target,
@@ -1583,9 +1488,7 @@ def test_basic_view_update_column_no_geos(
         if col.source in me_2010_gdf.columns
     }
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf,
             columns=columns10,
@@ -1603,9 +1506,7 @@ def test_basic_view_update_column_no_geos(
         ValueError,
         match="`include_geos` is True, but no 'geometry' column found in dataframe.",
     ):
-        with client.context(
-            notes="Creating a view template and view for Maine counties"
-        ) as ctx:
+        with client.context(notes="Creating a view template and view for Maine counties") as ctx:
             ctx.load_dataframe(
                 df=me_2010_gdf2,
                 columns=columns10,
@@ -1613,9 +1514,7 @@ def test_basic_view_update_column_no_geos(
                 layer=layer10,
             )
 
-    with client.context(
-        notes="Creating a view template and view for Maine counties"
-    ) as ctx:
+    with client.context(notes="Creating a view template and view for Maine counties") as ctx:
         ctx.load_dataframe(
             df=me_2010_gdf2,
             columns=columns10,
@@ -1648,9 +1547,9 @@ def test_basic_view_update_column_no_geos(
 
     import geopandas as gpd
 
-    land_geo = gpd.GeoDataFrame(
-        land_df, geometry="geometry", crs=land_view.proj
-    ).to_crs(me_2010_gdf.crs)
+    land_geo = gpd.GeoDataFrame(land_df, geometry="geometry", crs=land_view.proj).to_crs(
+        me_2010_gdf.crs
+    )
 
     # Check for equality up to floating point tolerance from reprojection
     for p1, p2 in zip(land_geo.geometry, me_2010_gdf.geometry):

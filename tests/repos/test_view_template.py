@@ -1,8 +1,9 @@
 """Integration/VCR tests for view templates."""
 
 import pytest
-from gerrydb.repos.view_template import _normalize_columns, _normalize_column_sets
-from gerrydb.schemas import Column, ColumnKind, ColumnType, ObjectMeta, ColumnSet
+
+from gerrydb.repos.view_template import _normalize_column_sets, _normalize_columns
+from gerrydb.schemas import Column, ColumnKind, ColumnSet, ColumnType, ObjectMeta
 
 
 def test_normalize_column_column_object():
@@ -29,9 +30,9 @@ def test_normlize_columns_splits_strings_correctly():
     assert _normalize_columns("census.2010_test1", ["total_pop"]) == [
         "/columns/census.2010_test1/total_pop"
     ]
-    assert _normalize_columns(
-        "census.2010_test_AAAAA", ["census.2010_test1/total_pop"]
-    ) == ["/columns/census.2010_test1/total_pop"]
+    assert _normalize_columns("census.2010_test_AAAAA", ["census.2010_test1/total_pop"]) == [
+        "/columns/census.2010_test1/total_pop"
+    ]
     assert _normalize_columns(
         "census.2010_test_AAAAA", ["columns/census.2010_test1/total_pop"]
     ) == ["/columns/census.2010_test1/total_pop"]
@@ -45,14 +46,12 @@ def test_normalize_columns_raises_on_bad_string():
 
 
 def test_normalize_columns_tuples():
-    assert _normalize_columns(
-        "census.2010_test_AAAAA", [("census.2010_test1", "total_pop")]
-    ) == ["/columns/census.2010_test1/total_pop"]
+    assert _normalize_columns("census.2010_test_AAAAA", [("census.2010_test1", "total_pop")]) == [
+        "/columns/census.2010_test1/total_pop"
+    ]
 
     with pytest.raises(ValueError, match="When passing a tuple"):
-        _normalize_columns(
-            "census.2010_test_AAAAA", [("census.2010_test1", "total_pop", "extra")]
-        )
+        _normalize_columns("census.2010_test_AAAAA", [("census.2010_test1", "total_pop", "extra")])
 
 
 def test_normalize_columns_bad_column_type():
@@ -98,9 +97,9 @@ def test_normalize_column_sets_splits_strings_correctly():
     assert _normalize_column_sets("census.2010_test1", ["me_set"]) == [
         "/column-sets/census.2010_test1/me_set"
     ]
-    assert _normalize_column_sets(
-        "census.2010_test_AAAAA", ["census.2010_test1/me_set"]
-    ) == ["/column-sets/census.2010_test1/me_set"]
+    assert _normalize_column_sets("census.2010_test_AAAAA", ["census.2010_test1/me_set"]) == [
+        "/column-sets/census.2010_test1/me_set"
+    ]
     assert _normalize_column_sets(
         "census.2010_test_AAAAA", ["column-sets/census.2010_test1/me_set"]
     ) == ["/column-sets/census.2010_test1/me_set"]
@@ -109,20 +108,16 @@ def test_normalize_column_sets_splits_strings_correctly():
 def test_normalize_column_sets_raises_on_bad_string():
     with pytest.raises(ValueError, match="Invalid column set path: /bad/path/column"):
         _normalize_column_sets("census.2010_test1", ["/bad/path/column"])
-    with pytest.raises(
-        ValueError, match="Column_set path must be in the form of either"
-    ):
+    with pytest.raises(ValueError, match="Column_set path must be in the form of either"):
         _normalize_column_sets("census.2010_test1", ["/bad/path/to/column"])
 
 
 def test_normalize_column_sets_tuples():
-    assert _normalize_column_sets(
-        "census.2010_test_AAAAA", [("census.2010_test1", "me_set")]
-    ) == ["/column-sets/census.2010_test1/me_set"]
+    assert _normalize_column_sets("census.2010_test_AAAAA", [("census.2010_test1", "me_set")]) == [
+        "/column-sets/census.2010_test1/me_set"
+    ]
     with pytest.raises(ValueError, match="When passing a tuple"):
-        _normalize_column_sets(
-            "census.2010_test_AAAAA", [("census.2010_test1", "me_set", "extra")]
-        )
+        _normalize_column_sets("census.2010_test_AAAAA", [("census.2010_test1", "me_set", "extra")])
 
 
 def test_normalize_column_sets_bad_column_type():
@@ -132,13 +127,9 @@ def test_normalize_column_sets_bad_column_type():
 
 @pytest.mark.vcr
 def test_view_template_repo_create_get_missing_columns(client_ns):
-    with pytest.raises(
-        ValueError, match="Must provide at least one of columns or column_sets."
-    ):
+    with pytest.raises(ValueError, match="Must provide at least one of columns or column_sets."):
         with client_ns.context(notes="adding a view template with two columns") as ctx:
-            ctx.view_templates.create(
-                path="pops_empty", columns=[], description="Population view."
-            )
+            ctx.view_templates.create(path="pops_empty", columns=[], description="Population view.")
 
 
 @pytest.mark.vcr

@@ -2,16 +2,16 @@
 
 from typing import Collection, Optional, Union
 
+from gerrydb.logging import log
 from gerrydb.repos.base import (
     NamespacedObjectRepo,
     err,
     namespaced,
-    online,
     normalize_path,
+    online,
     write_context,
 )
 from gerrydb.schemas import Column, ColumnSet, ViewTemplate, ViewTemplateCreate
-from gerrydb.logging import log
 
 
 def _normalize_columns(
@@ -55,9 +55,7 @@ def _normalize_columns(
                 )
             return_list.append(f"/columns/{col[0]}/{col[1]}")
         else:
-            raise ValueError(
-                f"Invalid column type: {type(col)}. Must be a Column, str, or tuple."
-            )
+            raise ValueError(f"Invalid column type: {type(col)}. Must be a Column, str, or tuple.")
 
     return return_list
 
@@ -124,9 +122,7 @@ class ViewTemplateRepo(NamespacedObjectRepo[ViewTemplate]):
         namespace: Optional[str] = None,
         *,
         columns: Optional[Collection[Union[Column, str, tuple[str, str]]]] = list(),
-        column_sets: Optional[
-            Collection[Union[ColumnSet, str, tuple[str, str]]]
-        ] = list(),
+        column_sets: Optional[Collection[Union[ColumnSet, str, tuple[str, str]]]] = list(),
         description: str,
     ) -> ViewTemplate:
         """Creates a view template.
@@ -152,9 +148,7 @@ class ViewTemplateRepo(NamespacedObjectRepo[ViewTemplate]):
             Metadata for the new column.
         """
         assert (
-            isinstance(columns, list)
-            or isinstance(columns, set)
-            or isinstance(columns, tuple)
+            isinstance(columns, list) or isinstance(columns, set) or isinstance(columns, tuple)
         ), "'columns' must be a list, set, or tuple"
         assert (
             isinstance(column_sets, list)

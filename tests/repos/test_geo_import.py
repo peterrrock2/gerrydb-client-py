@@ -1,6 +1,7 @@
 """Integration/VCR tests for geographic import metadata."""
 
 import pytest
+
 from gerrydb.client import gather_batch
 
 # The `GeoImport` object is used for internal tracking, so we don't

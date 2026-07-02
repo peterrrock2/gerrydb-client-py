@@ -5,21 +5,18 @@ This file should be kept in sync with the server-side version.
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, Union, Annotated
+from typing import Annotated, Any, Optional, Union
 from uuid import UUID
 
 import pyproj
-from pydantic import AnyUrl, ConfigDict
+from pydantic import AnyUrl, ConfigDict, Field
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import Field
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
 
 UserEmail = Annotated[
     str,
-    Field(
-        max_length=255, min_length=3, pattern=r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
-    ),
+    Field(max_length=255, min_length=3, pattern=r"^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"),
 ]
 # / allowed at start. 1-2 segments. Used for objects that are not namespaced like
 # localities.

@@ -1,17 +1,17 @@
 """Internal cache operations for GerryDB."""
 
 import gzip
+import os
 import pickle
 import sqlite3
-import os
+import weakref
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
 from typing import Optional, TypeVar, Union
-import weakref
 
-from gerrydb.schemas import BaseModel
 from gerrydb.logging import log
+from gerrydb.schemas import BaseModel
 
 from .exceptions import CacheInitError
 
@@ -63,9 +63,7 @@ class GerryCache:
             self._conn.close()
             self._conn = None
 
-    def upsert_graph_gpkg(
-        self, namespace: str, path: str, render_id: str, content: bytes
-    ) -> Path:
+    def upsert_graph_gpkg(self, namespace: str, path: str, render_id: str, content: bytes) -> Path:
         gpkg_path = self.data_dir / f"{render_id}.gpkg"
         with open(gpkg_path, "wb") as gpkg_fp:
             bytes_written = gpkg_fp.write(content)
@@ -84,9 +82,7 @@ class GerryCache:
                 )
                 log.debug(f"The previous render id is {prev_render_id}")
                 for ext in CACHE_EXTENSIONS:
-                    Path(self.data_dir / f"{prev_render_id[0]}.{ext}").unlink(
-                        missing_ok=True
-                    )
+                    Path(self.data_dir / f"{prev_render_id[0]}.{ext}").unlink(missing_ok=True)
 
             self._conn.execute(
                 (
@@ -132,9 +128,7 @@ class GerryCache:
 
         return gpkg_path
 
-    def upsert_view_gpkg(
-        self, namespace: str, path: str, render_id: str, content: bytes
-    ) -> Path:
+    def upsert_view_gpkg(self, namespace: str, path: str, render_id: str, content: bytes) -> Path:
         """Upserts a view's GeoPackage into the cache.
 
         Returns:
@@ -158,9 +152,7 @@ class GerryCache:
                     (namespace, path),
                 )
                 for ext in CACHE_EXTENSIONS:
-                    Path(self.data_dir / f"{prev_render_id[0]}.{ext}").unlink(
-                        missing_ok=True
-                    )
+                    Path(self.data_dir / f"{prev_render_id[0]}.{ext}").unlink(missing_ok=True)
 
             self._conn.execute(
                 (

@@ -3,10 +3,10 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
-from gerrydb.repos.base import ObjectRepo, err, normalize_path, online, write_context
-from gerrydb.schemas import Locality, LocalityCreate, LocalityPatch
 from gerrydb.exceptions import ResultError
 from gerrydb.logging import log
+from gerrydb.repos.base import ObjectRepo, err, normalize_path, online, write_context
+from gerrydb.schemas import Locality, LocalityCreate, LocalityPatch
 
 if TYPE_CHECKING:
     from gerrydb.client import GerryDB, WriteContext  # pragma: no cover

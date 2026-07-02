@@ -2,6 +2,7 @@
 
 from typing import Optional, Union
 
+from gerrydb.logging import log
 from gerrydb.repos.base import (
     NamespacedObjectRepo,
     err,
@@ -10,7 +11,6 @@ from gerrydb.repos.base import (
     write_context,
 )
 from gerrydb.schemas import Geography, GeoLayer, GeoLayerCreate, GeoSetCreate, Locality
-from gerrydb.logging import log
 
 
 class GeoLayerRepo(NamespacedObjectRepo[GeoLayer]):
@@ -69,23 +69,16 @@ class GeoLayerRepo(NamespacedObjectRepo[GeoLayer]):
                 or if the parameters fail validation.
         """
         log.debug("TOP OF MAP LOCALITY")
-        log.debug(
-            f"MAKING PUT REQUEST TO {self.base_url}/{layer.namespace}/{layer.path}"
-        )
+        log.debug(f"MAKING PUT REQUEST TO {self.base_url}/{layer.namespace}/{layer.path}")
         response = self.ctx.client.put(
             f"{self.base_url}/{layer.namespace}/{layer.path}",
             params={
                 "locality": (
-                    locality.canonical_path
-                    if isinstance(locality, Locality)
-                    else locality
+                    locality.canonical_path if isinstance(locality, Locality) else locality
                 )
             },
             json=GeoSetCreate(
-                paths=[
-                    geo if isinstance(geo, str) else geo.full_path
-                    for geo in geographies
-                ]
+                paths=[geo if isinstance(geo, str) else geo.full_path for geo in geographies]
             ).model_dump(mode="json"),
         )
         response.raise_for_status()

@@ -1,6 +1,7 @@
 import logging
-import colorlog
 import os
+
+import colorlog
 
 log = logging.getLogger("gerrydb")
 

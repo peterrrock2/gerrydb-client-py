@@ -9,10 +9,8 @@ from gerrydb.repos.base import (
     normalize_path,
     online,
     write_context,
-    normalize_path,
 )
 from gerrydb.schemas import Namespace, NamespaceCreate
-
 
 if TYPE_CHECKING:
     from gerrydb.client import GerryDB, WriteContext  # pragma: no cover
@@ -83,9 +81,9 @@ class NamespaceRepo(NamespacedObjectRepo):
         path = normalize_path(path, path_length=1)
         response = self.ctx.client.post(
             "/namespaces/",
-            json=NamespaceCreate(
-                path=path, public=public, description=description
-            ).model_dump(mode="json"),
+            json=NamespaceCreate(path=path, public=public, description=description).model_dump(
+                mode="json"
+            ),
         )
 
         response.raise_for_status()

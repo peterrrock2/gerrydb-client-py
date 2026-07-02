@@ -8,14 +8,14 @@ import httpx
 import pydantic
 
 from gerrydb.exceptions import (
+    GerryPathError,
     OnlineError,
     RequestError,
     ResultError,
     WriteContextError,
-    GerryPathError,
 )
-from gerrydb.schemas import BaseModel
 from gerrydb.logging import log
+from gerrydb.schemas import BaseModel
 
 if TYPE_CHECKING:
     from gerrydb.client import GerryDB, WriteContext  # pragma: no cover
@@ -37,9 +37,7 @@ def err(message: str) -> Callable:
             except pydantic.ValidationError as ex:
                 raise ResultError(f"{message}: cannot parse response.") from ex
             except httpx.HTTPError as ex:
-                reason = (
-                    f" Reason: {ex.response.json()}" if hasattr(ex, "response") else ""
-                )
+                reason = f" Reason: {ex.response.json()}" if hasattr(ex, "response") else ""
                 raise ResultError(f"{message}: HTTP request failed.{reason}") from ex
             except TypeError as e:
                 # only intercept the “line_errors” signature‐mismatch
@@ -90,15 +88,11 @@ def namespaced(func: Callable) -> Callable:
             del kwargs["namespace"]
         else:
             namespace = (
-                args[2]
-                if len(args) >= 3 and args[2] is not None
-                else repo_obj.session.namespace
+                args[2] if len(args) >= 3 and args[2] is not None else repo_obj.session.namespace
             )
 
         if namespace is None:
-            raise RequestError(
-                "No namespace specified and no session-level default available."
-            )
+            raise RequestError("No namespace specified and no session-level default available.")
 
         return func(repo_obj, path, namespace, *args[3:], **kwargs)
 
@@ -151,9 +145,7 @@ def normalize_path(
             )
 
         return "/".join(
-            seg.lower() if i < len(path_list) - 1 else seg
-            for i, seg in enumerate(path_list)
-            if seg
+            seg.lower() if i < len(path_list) - 1 else seg for i, seg in enumerate(path_list) if seg
         )
 
     path_list = [seg for seg in path.strip().lower().split("/") if seg]
@@ -210,9 +202,7 @@ class NamespacedObjectRepo(Generic[SchemaType]):
     def __getitem__(self, key: Union[str, Tuple[str, str]]) -> Optional[SchemaType]:
         path = key
         assert isinstance(key, str) or (
-            isinstance(key, tuple)
-            and len(key) == 2
-            and all(isinstance(val, str) for val in key)
+            isinstance(key, tuple) and len(key) == 2 and all(isinstance(val, str) for val in key)
         ), "Key must be a path string or a tuple of two strings (namespace, path)"
 
         if isinstance(key, str):

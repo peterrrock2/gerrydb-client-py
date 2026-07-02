@@ -1,9 +1,11 @@
 """Tests for GerryDB session management."""
 
 import os
-from unittest import mock
 from pathlib import Path
+from unittest import mock
+
 import pytest
+
 from gerrydb.client import ConfigError, GerryDB
 
 
@@ -72,16 +74,11 @@ def test_gerrydb_init_alt_profile(tmp_path):
 
 
 def test_gerrydb_base_url():
-    assert (
-        GerryDB(key="key", host="example.com")._base_url == "https://example.com/api/v1"
-    )
+    assert GerryDB(key="key", host="example.com")._base_url == "https://example.com/api/v1"
 
 
 def test_gerrydb_base_url_localhost():
-    assert (
-        GerryDB(key="key", host="localhost:8080")._base_url
-        == "http://localhost:8080/api/v1"
-    )
+    assert GerryDB(key="key", host="localhost:8080")._base_url == "http://localhost:8080/api/v1"
 
 
 def test_missing_profile(tmp_path, monkeypatch):

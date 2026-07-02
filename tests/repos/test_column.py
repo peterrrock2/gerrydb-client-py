@@ -1,13 +1,14 @@
 """Integration/VCR tests for columns."""
 
+import asyncio
+
+import httpx
 import pytest
+from httpx import HTTPError
 from shapely import box
 
-from gerrydb.schemas import ColumnKind, ColumnType
 from gerrydb.client import GerryDB
-import asyncio
-import httpx
-from httpx import HTTPError
+from gerrydb.schemas import ColumnKind, ColumnType
 
 
 @pytest.fixture
@@ -51,9 +52,7 @@ def test_column_repo_set_values(client_ns, column):
         col = ctx.columns.create(**column)
         with ctx.geo.bulk() as geo_ctx:
             geo_ctx.create({f"{idx:010d}": box(0, 0, 1, 1) for idx in range(n)})
-        ctx.columns.set_values(
-            path=col.path, values={f"{idx:010d}": idx for idx in range(n)}
-        )
+        ctx.columns.set_values(path=col.path, values={f"{idx:010d}": idx for idx in range(n)})
 
 
 def test_column_repo_set_values_invalid_path_or_col(client_ns):

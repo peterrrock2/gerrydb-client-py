@@ -5,13 +5,14 @@ from typing import Any, Optional, Union
 import httpx
 import numpy as np
 
+from gerrydb.logging import log
 from gerrydb.repos.base import (
     NamespacedObjectRepo,
     err,
     namespaced,
+    normalize_path,
     online,
     write_context,
-    normalize_path,
 )
 from gerrydb.schemas import (
     Column,
@@ -22,8 +23,6 @@ from gerrydb.schemas import (
     ColumnValue,
     Geography,
 )
-
-from gerrydb.logging import log
 
 
 class ColumnRepo(NamespacedObjectRepo[Column]):
@@ -90,9 +89,7 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
     @namespaced
     @write_context
     @online
-    def update(
-        self, path: str, namespace: Optional[str] = None, *, aliases: list[str]
-    ) -> Column:
+    def update(self, path: str, namespace: Optional[str] = None, *, aliases: list[str]) -> Column:
         """Updates a tabular data column.
 
         Currently, only adding aliases is supported.
@@ -175,11 +172,7 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
             clean_path,
             json=[
                 ColumnValue(
-                    path=(
-                        f"/{geo.namespace}/{geo.path}"
-                        if isinstance(geo, Geography)
-                        else geo
-                    ),
+                    path=(f"/{geo.namespace}/{geo.path}" if isinstance(geo, Geography) else geo),
                     value=value,
                 ).model_dump(mode="json")
                 for geo, value in values.items()
@@ -238,11 +231,7 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
         # Peter Note: the geos are generally strings here
         json = [
             ColumnValue(
-                path=(
-                    f"/{geo.namespace}/{geo.path}"
-                    if isinstance(geo, Geography)
-                    else geo
-                ),
+                path=(f"/{geo.namespace}/{geo.path}" if isinstance(geo, Geography) else geo),
                 value=_coerce(value),
             ).model_dump(mode="json")
             for geo, value in values.items()

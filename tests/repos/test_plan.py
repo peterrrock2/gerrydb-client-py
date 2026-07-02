@@ -6,9 +6,7 @@ from gerrydb.exceptions import ResultError
 
 
 @pytest.mark.vcr
-def test_plan_repo_create_get__one_district_complete(
-    client_with_ia_layer_loc, ia_dataframe
-):
+def test_plan_repo_create_get__one_district_complete(client_with_ia_layer_loc, ia_dataframe):
     client_ns, layer, locality, _ = client_with_ia_layer_loc
     with client_ns.context(notes="Uploading a plan for Iowa counties") as ctx:
         plan = ctx.plans.create(
@@ -28,9 +26,7 @@ def test_plan_repo_create_get__one_district_complete(
 
 
 @pytest.mark.vcr
-def test_plan_repo_create__one_district_incomplete(
-    client_with_ia_layer_loc, ia_dataframe
-):
+def test_plan_repo_create__one_district_incomplete(client_with_ia_layer_loc, ia_dataframe):
     client_ns, layer, locality, _ = client_with_ia_layer_loc
     geos = list(ia_dataframe.index)
     assigned_geos = geos[:50]
@@ -91,9 +87,7 @@ def test_plan_repo_create__unknown_geos(client_with_ia_layer_loc):
         county_loc = ctx.localities.create(
             canonical_path="iowa.dubuque2", name="Dubuque County version 2, Iowa"
         )
-        ctx.geo_layers.map_locality(
-            layer=layer, locality=county_loc, geographies=["19061"]
-        )
+        ctx.geo_layers.map_locality(layer=layer, locality=county_loc, geographies=["19061"])
 
     with client_ns.context(notes="Uploading a plan for Iowa counties") as ctx:
         with pytest.raises(

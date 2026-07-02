@@ -1,5 +1,6 @@
 import pytest
 from click.testing import CliRunner
+
 from gerrydb.create import cli
 from gerrydb.exceptions import ResultError
 
@@ -53,9 +54,7 @@ def dummy_ctx():
 @pytest.fixture(autouse=True)
 def patch_gerrydb(monkeypatch, dummy_ctx):
     # Replace GerryDB so it always returns DummyDB(dummy_ctx)
-    monkeypatch.setattr(
-        "gerrydb.create.GerryDB", lambda *args, **kwargs: DummyDB(dummy_ctx)
-    )
+    monkeypatch.setattr("gerrydb.create.GerryDB", lambda *args, **kwargs: DummyDB(dummy_ctx))
     return dummy_ctx
 
 
@@ -65,9 +64,7 @@ def runner():
 
 
 def test_namespace_happy(runner, dummy_ctx):
-    result = runner.invoke(
-        cli, ["namespace", "foo", "--description", "mydesc", "--public"]
-    )
+    result = runner.invoke(cli, ["namespace", "foo", "--description", "mydesc", "--public"])
     assert result.exit_code == 0
     assert "Failed to create" not in result.output
     assert dummy_ctx.namespaces.called

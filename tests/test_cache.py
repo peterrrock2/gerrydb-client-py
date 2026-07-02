@@ -1,14 +1,15 @@
 """Tests for GerryDB's local caching layer."""
 
+import logging
+import os
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import pytest
 
 from gerrydb.cache import CacheInitError, GerryCache
-from tempfile import TemporaryDirectory
-from pathlib import Path
-from datetime import datetime
-import os
-import logging
-import sqlite3
 
 
 @pytest.fixture
@@ -81,9 +82,7 @@ def test_basic_upsert_and_get_graph(tmp_path, cache_small):
     assert gpkg_path.exists()
     assert (tmp_path / "r1.gpkg").read_bytes() == content
 
-    cur = cache_small._conn.execute(
-        "SELECT namespace, path, render_id, file_size_kb FROM graph"
-    )
+    cur = cache_small._conn.execute("SELECT namespace, path, render_id, file_size_kb FROM graph")
     row = cur.fetchone()
     assert row[0] == ns and row[1] == path and row[2] == rid
     assert row[3] == 1
@@ -144,9 +143,7 @@ def test_eviction_missing_file_graph(tmp_path, cache_small, monkeypatch, caplog)
     ns = "ns_ev"
     cache_small.upsert_graph_gpkg(ns, "p1", "r1", b"x" * 512)
 
-    monkeypatch.setattr(
-        os, "remove", lambda p: (_ for _ in ()).throw(FileNotFoundError)
-    )
+    monkeypatch.setattr(os, "remove", lambda p: (_ for _ in ()).throw(FileNotFoundError))
 
     caplog.set_level(logging.DEBUG, logger="gerrydb")
     logging.getLogger("gerrydb").addHandler(caplog.handler)
@@ -154,8 +151,7 @@ def test_eviction_missing_file_graph(tmp_path, cache_small, monkeypatch, caplog)
     cache_small.upsert_graph_gpkg(ns, "p2", "r2", b"y" * 512)
 
     assert any(
-        "Could not find the render file: r1.gpkg" in rec.getMessage()
-        for rec in caplog.records
+        "Could not find the render file: r1.gpkg" in rec.getMessage() for rec in caplog.records
     ), f"got: {[r.getMessage() for r in caplog.records]}"
 
     assert (tmp_path / "r2.gpkg").exists()
@@ -165,17 +161,14 @@ def test_eviction_missing_file_view(tmp_path, cache_small, monkeypatch, caplog):
     ns = "nsV"
     cache_small.upsert_view_gpkg(ns, "p1", "v1", b"x" * 512)
 
-    monkeypatch.setattr(
-        os, "remove", lambda p: (_ for _ in ()).throw(FileNotFoundError)
-    )
+    monkeypatch.setattr(os, "remove", lambda p: (_ for _ in ()).throw(FileNotFoundError))
     caplog.set_level(logging.DEBUG, logger="gerrydb")
     logging.getLogger("gerrydb").addHandler(caplog.handler)
 
     cache_small.upsert_view_gpkg(ns, "p2", "v2", b"y" * 512)
 
     assert any(
-        "Could not find the render file: v1.gpkg" in rec.getMessage()
-        for rec in caplog.records
+        "Could not find the render file: v1.gpkg" in rec.getMessage() for rec in caplog.records
     ), f"got: {[r.getMessage() for r in caplog.records]}"
 
     assert (tmp_path / "v2.gpkg").exists()

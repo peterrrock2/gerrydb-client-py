@@ -1,12 +1,19 @@
 """Repository for dual graphs."""
 
+import io
+import json
+import logging
+import sqlite3
+import time
+from datetime import datetime
+from pathlib import Path
 from typing import Optional, Union
 
 import networkx as nx
-import sqlite3
-import io
-from datetime import datetime
+import shapely
 
+from gerrydb.exceptions import GraphCreateError, GraphLoadError
+from gerrydb.logging import log
 from gerrydb.repos.base import (
     NamespacedObjectRepo,
     err,
@@ -15,24 +22,15 @@ from gerrydb.repos.base import (
     online,
     write_context,
 )
-from gerrydb.exceptions import GraphLoadError, GraphCreateError
 from gerrydb.schemas import (
+    BaseGeometry,
     GeoLayer,
     Graph,
+    GraphCreate,
     GraphMeta,
     Locality,
     ObjectMeta,
-    GraphCreate,
-    GraphMeta,
-    BaseGeometry,
 )
-import time
-import logging
-from pathlib import Path
-import json
-import networkx as nx
-import shapely
-from gerrydb.logging import log
 
 try:
     import gerrychain
@@ -129,16 +127,13 @@ class DBGraph:
         start = time.perf_counter()
         if isinstance(path, io.BytesIO):
             path.seek(0)
-            conn = sqlite3.connect(
-                "file:cached_view?mode=memory&cache=shared", uri=True
-            )
+            conn = sqlite3.connect("file:cached_view?mode=memory&cache=shared", uri=True)
             conn.executescript(path.read().decode("utf-8"))
         else:
             conn = sqlite3.connect(path)
 
         tables = conn.execute(
-            "SELECT name FROM sqlite_master WHERE "
-            "type ='table' AND name NOT LIKE 'sqlite_%'"
+            "SELECT name FROM sqlite_master WHERE type ='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchall()
         missing_tables = _EXPECTED_TABLES - set(table[0] for table in tables)
         if missing_tables:
@@ -219,9 +214,7 @@ class DBGraph:
                 )
             graph.add_node(path, **node_attrs)
 
-        edge_query = self._conn.execute(
-            "SELECT path_1, path_2, weights FROM gerrydb_graph_edge"
-        )
+        edge_query = self._conn.execute("SELECT path_1, path_2, weights FROM gerrydb_graph_edge")
         for edge in edge_query:
             graph.add_edge(edge[0], edge[1], attr=edge[2])
 
@@ -277,11 +270,7 @@ class GraphRepo(NamespacedObjectRepo[Graph]):
             f"{self.base_url}/{namespace}",
             json=GraphCreate(
                 path=path,
-                locality=(
-                    locality.canonical_path
-                    if isinstance(locality, Locality)
-                    else locality
-                ),
+                locality=(locality.canonical_path if isinstance(locality, Locality) else locality),
                 layer=layer.full_path if isinstance(layer, GeoLayer) else layer,
                 description=description,
                 edges=[

@@ -1,11 +1,13 @@
 """Integration/VCR tests for localities."""
 
-import pytest
-from gerrydb.schemas import LocalityCreate
-from gerrydb.repos.locality import LocalityRepo
-from gerrydb.exceptions import ResultError
-from types import SimpleNamespace as _BaseNS
 import logging
+from types import SimpleNamespace as _BaseNS
+
+import pytest
+
+from gerrydb.exceptions import ResultError
+from gerrydb.repos.locality import LocalityRepo
+from gerrydb.schemas import LocalityCreate
 
 
 class SimpleNamespace(_BaseNS):

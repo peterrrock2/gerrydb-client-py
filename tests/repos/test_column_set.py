@@ -1,6 +1,7 @@
 """Integration/VCR tests for columns."""
 
 import pytest
+
 from gerrydb.exceptions import RequestError
 
 
@@ -41,9 +42,7 @@ def test_column_set_repo_create_all(client_ns, pop_column_meta):
 
 @pytest.mark.vcr
 def test_column_set_repo_create_bad_col_list(client_ns):
-    with pytest.raises(
-        RequestError, match="Column paths must be in the form of either"
-    ):
+    with pytest.raises(RequestError, match="Column paths must be in the form of either"):
         with client_ns.context(notes="adding one column in a column set") as ctx:
             ctx.column_sets.create(
                 path="totals",

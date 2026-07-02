@@ -1,24 +1,24 @@
 """Repository for geographies."""
 
+import json
 from dataclasses import dataclass
+from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import httpx
-from http import HTTPStatus
 import msgpack
 import shapely.wkb
 from shapely import Point
 from shapely.geometry.base import BaseGeometry
-import json
 
-from gerrydb.exceptions import RequestError, ForkingError
+from gerrydb.exceptions import ForkingError, RequestError
 from gerrydb.repos.base import (
     NAMESPACE_ERR,
     NamespacedObjectRepo,
     err,
+    namespaced,
     online,
     write_context,
-    namespaced,
 )
 from gerrydb.schemas import Geography, GeographyCreate, GeoImport
 
@@ -70,9 +70,7 @@ def _parse_geo_response(response: httpx.Response) -> list[Geography]:
     response_geos = []
     for response_geo in msgpack.loads(response.content):
         response_geo["geography"] = shapely.wkb.loads(response_geo["geography"])
-        response_geo["internal_point"] = shapely.wkb.loads(
-            response_geo["internal_point"]
-        )
+        response_geo["internal_point"] = shapely.wkb.loads(response_geo["internal_point"])
         response_geos.append(Geography(**response_geo))
     return response_geos
 
@@ -234,10 +232,7 @@ class AsyncGeoImporter:
                 json_content.get("detail", None)
                 == "Object creation failed. Reason: Cannot create geographies with duplicate paths."
             ):
-
-                raise RequestError(
-                    json_content["detail"] + " " + str(json_content["paths"])
-                )
+                raise RequestError(json_content["detail"] + " " + str(json_content["paths"]))
 
         response.raise_for_status()
         return _parse_geo_response(response)
@@ -279,9 +274,7 @@ class GeographyRepo(NamespacedObjectRepo[Geography]):
         if namespace is None:
             namespace = self.session.namespace  # pragma: no cover
 
-        response = self.session.client.get(
-            f"/__geography_list/{namespace}/{path}/{layer_name}"
-        )
+        response = self.session.client.get(f"/__geography_list/{namespace}/{path}/{layer_name}")
         response.raise_for_status()
         response_json = response.json()
 

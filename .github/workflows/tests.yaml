@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgis/postgis:16-3.4
+        image: postgis/postgis:17-3.5
         ports:
           - 54320:5432
         env:
@@ -25,7 +25,7 @@ jobs:
           --health-retries 10
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ['3.13']
     env:
       OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
@@ -61,19 +61,15 @@ jobs:
       run: |
         git clone https://github.com/mggg/gerrydb-etl.git ../gerrydb-etl
 
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+
     - name: Install dependencies
       run: |
         cd ..
-        python -m venv .venv
+        uv venv .venv
         source .venv/bin/activate
-        pip install --upgrade pip
-        pip install poetry
-        cd ./gerrydb-client-py/
-        poetry install
-        cd ../gerrydb-meta/
-        poetry install
-        cd ../gerrydb-etl/
-        poetry install
+        uv pip install -e './gerrydb-client-py[dev]' -e ./gerrydb-meta -e ./gerrydb-etl
 
     - name: Set up GerryDB and get API key
       run: |

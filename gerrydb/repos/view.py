@@ -14,6 +14,7 @@ import pandas as pd
 import shapely.wkb
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
+import weakref
 
 from gerrydb.exceptions import ViewLoadError
 from gerrydb.repos.base import (
@@ -185,6 +186,11 @@ class View:
         ret = cls(meta=ViewMeta(**raw_meta), gpkg_path=path, conn=conn)
         end = time.perf_counter()
         log.debug(f"Time to convert gpkg: {end - start}")
+        # if conn is not None:
+        #     try:
+        #         conn.close()
+        #     except sqlite3.OperationalError as e:
+        #         log.warning(f"Failed to close connection: {e}")
         return ret
 
     def to_df(
@@ -443,7 +449,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
 
         response = self.ctx.client.post(
             f"{self.base_url}/{namespace}",
-            json=payload.dict(),
+            json=payload.model_dump(mode="json"),
             timeout=10000,
         )
         try:
@@ -478,11 +484,13 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
             RequestError: If the view cannot be retrieved on the server side,
                 if the parameters fail validation, or if no namespace is provided.
         """
+        log.debug(f"Getting view {path} in namespace {namespace}")
         gpkg_path = self.session.cache.get_view_gpkg(
             namespace=normalize_path(namespace, path_length=1),
             path=normalize_path(path),
         )
         if gpkg_path is None:
+            log.debug(f"View {path} not found in cache, downloading.")
             gpkg_path = self._get(path, namespace, request_timeout)
         return View.from_gpkg(gpkg_path)
 
@@ -490,6 +498,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         """Downloads view data as a GeoPackage."""
         # Generate a new render (assuming the view exists).
         # These can take a long time to render depending on the size of the view.
+        log.debug(f"Requesting view {path} in namespace {namespace}")
         gpkg_response = self.session.client.post(
             f"{self.base_url}/{namespace}/{path}",
             timeout=request_timeout,
@@ -509,6 +518,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         else:
             gpkg_render_id = gpkg_response.headers["x-gerrydb-view-render-id"]
 
+        log.debug(f"Got render ID {gpkg_render_id}. Upserting view GPKG.")
         return self.session.cache.upsert_view_gpkg(
             namespace=normalize_path(namespace, path_length=1),
             path=normalize_path(path),

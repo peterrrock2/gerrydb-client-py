@@ -157,6 +157,11 @@ class DBGraph:
         ret = cls(meta=GraphMeta(**raw_meta), gpkg_path=path, conn=conn)
         end = time.perf_counter()
         log.debug(f"Time to convert gpkg: {end - start}")
+        if conn is not None:
+            try:
+                conn.close()
+            except sqlite3.OperationalError as e:
+                log.warning(f"Failed to close connection: {e}")
         return ret
 
     def to_networkx(

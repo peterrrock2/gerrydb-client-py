@@ -16,6 +16,7 @@ from rapidfuzz import process, fuzz
 from geoalchemy2.elements import WKBElement
 from shapely.geometry import Polygon
 import hashlib
+import weakref
 
 from gerrydb.cache import GerryCache
 from gerrydb.exceptions import ConfigError
@@ -205,18 +206,27 @@ class GerryDB:
             timeout=timeout,
             transport=self._transport,
         )
+        self._finalizer = weakref.finalize(self, self.close)
 
-    # TODO: add a flag to all methods to force the use of the context manager
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def close(self):
         if self.client is not None:
             self.client.close()
             self.client = None
         if self._temp_dir is not None:
             self._temp_dir.cleanup()
             self._temp_dir = None
+        if self.cache is not None:
+            self.cache.close()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
+        # Don't run the finalizer if we have already cleaned up
+        if self._finalizer is not None:
+            self._finalizer.detach()
 
         return False
 
@@ -315,10 +325,22 @@ class WriteContext:
             "transport": self.db._transport,
         }
         self.client = httpx.Client(**self.client_params)
+
+        self._finalizer = weakref.finalize(self, self.close)
         return self
 
+    def close(self):
+        if self.client is not None:
+            self.client.close()
+            self.client = None
+
     def __exit__(self, exc_type, exc_value, traceback):
-        self.client.close()
+        self.close()
+
+        if self._finalizer is not None:
+            self._finalizer.detach()
+
+        return False
 
     @property
     def columns(self) -> ColumnRepo:

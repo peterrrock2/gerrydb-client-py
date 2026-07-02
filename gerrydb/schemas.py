@@ -9,7 +9,7 @@ from typing import Any, Optional, Union, Annotated
 from uuid import UUID
 
 import pyproj
-from pydantic import AnyUrl
+from pydantic import AnyUrl, ConfigDict
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from shapely.geometry import Point
@@ -26,7 +26,7 @@ UserEmail = Annotated[
 GerryPath = Annotated[
     str,
     Field(
-        pattern=r"^/?[a-z0-9][a-z0-9-_.]+(?:/[a-z0-9][a-z0-9-_.]+){0,1}$",
+        pattern=r"^/?[a-z0-9][a-z0-9-_.:]+(?:/[a-z0-9][a-z0-9-_.:]+){0,1}$",
         max_length=255,
         min_length=2,
     ),
@@ -36,7 +36,7 @@ GerryPath = Annotated[
 NamespacedGerryPath = Annotated[
     str,
     Field(
-        pattern=r"^/?[a-z0-9][a-z0-9-_.]+(?:/[a-z0-9][a-z0-9-_.]+){0,2}$",
+        pattern=r"^/?[a-z0-9][a-z0-9-_.:]+(?:/[a-z0-9][a-z0-9-_.:]+){0,2}$",
         max_length=255,
         min_length=2,
     ),
@@ -46,8 +46,8 @@ NamespacedGerryPath = Annotated[
 NamespacedGerryGeoPath = Annotated[
     str,
     Field(
-        pattern=r"^/?[a-z0-9][a-z0-9-_.]+(?:/[a-z0-9][a-z0-9-_.]+){0,1}"
-        r"(?:/[a-zA-Z0-9][a-zA-Z0-9-_.]+){0,1}$",
+        pattern=r"^/?[a-z0-9][a-z0-9-_.:]+(?:/[a-z0-9][a-z0-9-_.:]+){0,1}"
+        r"(?:/[a-zA-Z0-9][a-zA-Z0-9-_.:]+){0,1}$",
         max_length=255,
         min_length=2,
     ),
@@ -56,7 +56,7 @@ NamespacedGerryGeoPath = Annotated[
 NameStr = Annotated[
     str,
     Field(
-        pattern=r"^[a-z0-9][a-z0-9-_.]+$",
+        pattern=r"^[a-z0-9][a-z0-9-_.:]+$",
         max_length=100,
         min_length=2,
     ),
@@ -64,7 +64,7 @@ NameStr = Annotated[
 # Capital letters allowed because some vtds suck
 GeoNameStr = Annotated[
     str,
-    Field(pattern=r"^[a-z0-9][a-zA-Z0-9-_.]+$", max_length=100, min_length=2),
+    Field(pattern=r"^[a-z0-9][a-zA-Z0-9-_.:]+$", max_length=100, min_length=2),
 ]
 Description = Optional[
     Annotated[
@@ -127,8 +127,9 @@ class ScopeType(str, Enum):
 class BaseModel(PydanticBaseModel):
     """Base model for GerryDB objects."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(
+        frozen=True,
+    )
 
 
 class NamespaceGroup(str, Enum):
@@ -211,10 +212,11 @@ class NamespaceCreate(NamespaceBase):
 class Namespace(NamespaceBase):
     """A namespace returned by the database."""
 
-    meta: ObjectMeta
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
 
-    class Config:
-        orm_mode = True
+    meta: ObjectMeta
 
 
 class ColumnBase(BaseModel):
@@ -265,7 +267,7 @@ class Column(ColumnBase):
 class ColumnValue(BaseModel):
     """Value of a column for a geography."""
 
-    path: NamespacedGerryPath  # of geography
+    path: GeoNameStr  # of geography
     value: Any
 
 
@@ -284,7 +286,7 @@ class GeoLayerCreate(GeoLayerBase):
 class GeoSetCreate(BaseModel):
     """Paths to geographies in a `GeoSet`."""
 
-    paths: list[NamespacedGerryGeoPath]
+    paths: list[GeoNameStr | NamespacedGerryGeoPath]
 
 
 class GeoLayer(GeoLayerBase):
@@ -316,12 +318,13 @@ class GeoImport(GeoImportBase):
 class GeographyBase(BaseModel):
     """Base model for a geographic unit."""
 
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+    )
+
     path: GeoNameStr
     geography: Optional[BaseGeometry]
     internal_point: Optional[Point] = None
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 class GeographyCreate(BaseModel):
@@ -444,7 +447,11 @@ class GraphBase(BaseModel):
     proj: ShortStr = None
 
 
-WeightedEdge = tuple[NamespacedGerryPath, NamespacedGerryPath, Optional[dict]]
+WeightedEdge = tuple[
+    Union[NamespacedGerryGeoPath, GeoNameStr],
+    Union[NamespacedGerryGeoPath, GeoNameStr],
+    Optional[dict],
+]
 
 
 class GraphCreate(GraphBase):
@@ -485,6 +492,10 @@ class ViewBase(BaseModel):
 class ViewCreate(ViewBase):
     """View definition received on creation."""
 
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")},
+    )
+
     template: NamespacedGerryPath
     locality: NamespacedGerryPath
     layer: NamespacedGerryPath
@@ -492,10 +503,6 @@ class ViewCreate(ViewBase):
 
     valid_at: Optional[datetime] = None
     proj: ShortStr = None
-
-    class Config:
-        # Whenever you call model.json(), turn datetimes into ISO strings
-        json_encoders = {datetime: lambda dt: dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")}
 
     def model_dump(self, *args, **kwargs):
         data = super().model_dump(*args, **kwargs)

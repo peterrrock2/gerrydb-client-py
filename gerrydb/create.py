@@ -20,15 +20,15 @@ def cli():
 @click.option("--public", is_flag=True)
 def namespace(path: str, description: str, public: bool):
     """Creates a namespace."""
-    db = GerryDB()
-    with db.context(notes=f'Creating namespace "{path}" from CLI') as ctx:
-        try:
-            ctx.namespaces.create(path=path, description=description, public=public)
-        except ResultError as e:
-            if "Failed to create namespace" in e.args[0]:
-                print(f"Failed to create {path} namespace, already exists")
-            else:
-                raise e
+    with GerryDB() as db:
+        with db.context(notes=f'Creating namespace "{path}" from CLI') as ctx:
+            try:
+                ctx.namespaces.create(path=path, description=description, public=public)
+            except ResultError as e:
+                if "Failed to create namespace" in e.args[0]:
+                    print(f"Failed to create {path} namespace, already exists")
+                else:
+                    raise e
 
 
 @cli.command()

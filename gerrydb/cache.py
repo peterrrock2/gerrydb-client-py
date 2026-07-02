@@ -8,6 +8,7 @@ from datetime import datetime
 from os import PathLike
 from pathlib import Path
 from typing import Optional, TypeVar, Union
+import weakref
 
 from gerrydb.schemas import BaseModel
 from gerrydb.logging import log
@@ -54,6 +55,13 @@ class GerryCache:
 
         self.data_dir = data_dir
         self.max_size_gb = max_size_gb
+
+        self._finalizer = weakref.finalize(self, self.close)
+
+    def close(self) -> None:
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
 
     def upsert_graph_gpkg(
         self, namespace: str, path: str, render_id: str, content: bytes

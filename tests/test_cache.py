@@ -229,6 +229,9 @@ def test_commit_executes_sql(cache):
         def execute(self, sql, *args, **kwargs):
             self.last_sql = sql
 
+        def close(self):
+            pass
+
     dummy = DummyConn()
     # Inject our dummy connection into the cache
     cache._conn = dummy

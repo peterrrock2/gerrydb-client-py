@@ -47,6 +47,9 @@ def client_ns(request, client):
 def vcr_config():
     return {
         "filter_headers": [("X-API-Key", "DUMMY")],
+        # Cassettes were recorded against localhost:8000; ignore host/port so
+        # they replay regardless of where the test server runs.
+        "match_on": ["method", "path", "query"],
     }
 
 

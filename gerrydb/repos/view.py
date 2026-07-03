@@ -478,7 +478,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         self,
         path: str,
         namespace: Optional[str] = None,
-        request_timeout: int = 1200,
+        request_timeout: int = 3600,
     ) -> View:
         """Gets a view.
 
@@ -496,7 +496,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
             gpkg_path = self._get(path, namespace, request_timeout)
         return View.from_gpkg(gpkg_path)
 
-    def _get(self, path: str, namespace: str, request_timeout: int = 1200) -> Path:
+    def _get(self, path: str, namespace: str, request_timeout: int = 3600) -> Path:
         """Downloads view data as a GeoPackage."""
         # Generate a new render (assuming the view exists).
         # These can take a long time to render depending on the size of the view.

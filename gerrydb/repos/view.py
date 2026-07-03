@@ -139,8 +139,7 @@ class View:
             return lookup[name]
         except KeyError:
             raise KeyError(
-                f"View has no column with path or alias '{name}'. "
-                f"Known names: {sorted(lookup)}"
+                f"View has no column with path or alias '{name}'. Known names: {sorted(lookup)}"
             ) from None
 
     @classmethod

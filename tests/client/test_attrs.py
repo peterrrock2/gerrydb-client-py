@@ -130,8 +130,11 @@ def test_writecontext_via_gdb_context():
 
         assert isinstance(ctx.client, DummyHttpxClient)
         assert ctx.client.kwargs == ctx.client_params
+        inner_client = ctx.client
 
-    assert ctx.client.closed
+    # WriteContext.close() releases ctx.client (sets it to None), so hold our
+    # own reference to check that the HTTP client actually got closed.
+    assert inner_client.closed
 
 
 def test_gdb_context_manager_cleans_up():

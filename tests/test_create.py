@@ -42,6 +42,12 @@ class DummyDB:
     def __init__(self, ctx):
         self._ctx = ctx
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return False
+
     def context(self, notes):
         return self._ctx
 

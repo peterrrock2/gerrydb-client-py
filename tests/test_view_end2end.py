@@ -112,6 +112,10 @@ def test_basic_view(
     assert land_df["area_water"].equals(me_2010_gdf["area_water"])
     assert land_df["geometry"].equals(me_2010_gdf["geometry"])
 
+    # Aliases resolve to the canonical rendered column names via View.col.
+    assert land_view.col("aland") == "area_land"
+    assert land_df[land_view.col("awater")].equals(land_df["area_water"])
+
     for geo in land_view.geographies:
         assert geo.geography.equals(land_df.loc[geo.path, "geometry"])
 
@@ -618,8 +622,10 @@ def test_basic_view_no_geos_and_allow_empty_polys(
     me_2010_gdf.sort_index(inplace=True)
 
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
-    assert land_df["full_name"].equals(me_2010_gdf["NAMELSAD10"])
-    assert land_df["lsad"].equals(me_2010_gdf["LSAD10"])
+    # astype(str) on both sides: the pickled fixture predates pandas 3's `str`
+    # dtype, and Series.equals is dtype-strict.
+    assert land_df["full_name"].astype(str).equals(me_2010_gdf["NAMELSAD10"].astype(str))
+    assert land_df["lsad"].astype(str).equals(me_2010_gdf["LSAD10"].astype(str))
     assert all([geo == Polygon() for geo in land_df["geometry"]])
     assert all([pt == Point() for pt in land_df["internal_point"]])
 
@@ -1272,8 +1278,8 @@ def test_several_cross_namespace_views(
     assert land_df["area_land"].equals(me_2020_gdf["ALAND20"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
     assert land_df["geometry"].equals(me_2020_gdf["geometry"])
-    assert set_df["full_name"].equals(me_2010_gdf["NAMELSAD10"])
-    assert set_df["lsad"].equals(me_2010_gdf["LSAD10"])
+    assert set_df["full_name"].astype(str).equals(me_2010_gdf["NAMELSAD10"].astype(str))
+    assert set_df["lsad"].astype(str).equals(me_2010_gdf["LSAD10"].astype(str))
     assert set_df["geometry"].equals(me_2020_gdf["geometry"])
     assert set_df["internal_point"].equals(land_df["internal_point"])
     assert full_df["area_land"].equals(land_df["area_land"])

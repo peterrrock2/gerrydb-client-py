@@ -30,6 +30,7 @@ from gerrydb.repos.base import (
 from gerrydb.schemas import (
     Column,
     ColumnKind,
+    ColumnSet,
     Geography,
     GeoLayer,
     Graph,
@@ -119,6 +120,28 @@ class View:
 
         self._gpkg_path = gpkg_path
         self._conn = conn
+
+    def col(self, name: str) -> str:
+        """Resolves a column path or alias to its name in rendered output.
+
+        Rendered GeoPackages and DataFrames always name columns by canonical
+        path; this maps any alias (e.g. ``aland``) to that name
+        (e.g. ``area_land``).
+        """
+        lookup: dict[str, str] = {}
+        for member in self.template.members:
+            member_cols = member.columns if isinstance(member, ColumnSet) else [member]
+            for column in member_cols:
+                lookup[column.canonical_path] = column.canonical_path
+                for alias in column.aliases:
+                    lookup[alias] = column.canonical_path
+        try:
+            return lookup[name]
+        except KeyError:
+            raise KeyError(
+                f"View has no column with path or alias '{name}'. "
+                f"Known names: {sorted(lookup)}"
+            ) from None
 
     @classmethod
     def from_gpkg(cls, path: Path | io.BytesIO) -> "View":

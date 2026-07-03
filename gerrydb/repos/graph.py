@@ -301,36 +301,46 @@ class GraphRepo(NamespacedObjectRepo[Graph]):
         return DBGraph.from_gpkg(gpkg_path)
 
     def _get(self, path: str, namespace: str, request_timeout: int = 1200) -> Path:
-        """Downloads view data as a GeoPackage."""
-        # Generate a new render (assuming the view exists).
-        # These can take a long time to render depending on the size of the view.
-        gpkg_response = self.session.client.post(
+        """Downloads graph data as a GeoPackage, streaming it to the cache file."""
+        # Generate a new render (assuming the graph exists).
+        # These can take a long time to render depending on the size of the graph.
+        with self.session.client.stream(
+            "POST",
             f"{self.base_url}/{namespace}/{path}",
             timeout=request_timeout,
-        )
-        log.debug("THE GPKG RESPONSE IS %s", gpkg_response)
-        log.debug("THE GPKG RESPONSE HEADERS ARE %s", gpkg_response.headers)
+        ) as gpkg_response:
+            log.debug("THE GPKG RESPONSE IS %s", gpkg_response)
+            log.debug("THE GPKG RESPONSE HEADERS ARE %s", gpkg_response.headers)
 
-        if gpkg_response.status_code >= 400:
-            gpkg_response.raise_for_status()  # pragma: no cover
-        if gpkg_response.next_request is not None:  # pragma: no cover
-            # Redirect to Google Cloud Storage (probably).
-            gpkg_response = self.session.client.get(
-                gpkg_response.next_request.url
-            )  # pragma: no cover
-            gpkg_response.raise_for_status()  # pragma: no cover
-            gpkg_render_id = gpkg_response.headers[  # pragma: no cover
-                "x-goog-meta-gerrydb-graph-render-id"
-            ]
-        else:
+            if gpkg_response.status_code >= 400:  # pragma: no cover
+                gpkg_response.read()
+                gpkg_response.raise_for_status()
+            if gpkg_response.next_request is not None:  # pragma: no cover
+                # Redirect to Google Cloud Storage (probably). Stream like the
+                # direct path; httpx decompresses the gzipped blob chunk-wise.
+                with self.session.client.stream(
+                    "GET", gpkg_response.next_request.url
+                ) as redirect_response:
+                    if redirect_response.status_code >= 400:
+                        redirect_response.read()
+                        redirect_response.raise_for_status()
+                    gpkg_render_id = redirect_response.headers[
+                        "x-goog-meta-gerrydb-graph-render-id"
+                    ]
+                    return self.session.cache.upsert_graph_gpkg(
+                        namespace=normalize_path(namespace, path_length=1),
+                        path=normalize_path(path),
+                        render_id=gpkg_render_id,
+                        content=redirect_response.iter_bytes(),
+                    )
+
             gpkg_render_id = gpkg_response.headers["x-gerrydb-graph-render-id"]
-
-        return self.session.cache.upsert_graph_gpkg(
-            namespace=normalize_path(namespace, path_length=1),
-            path=normalize_path(path),
-            render_id=gpkg_render_id,
-            content=gpkg_response.content,
-        )
+            return self.session.cache.upsert_graph_gpkg(
+                namespace=normalize_path(namespace, path_length=1),
+                path=normalize_path(path),
+                render_id=gpkg_render_id,
+                content=gpkg_response.iter_bytes(),
+            )
 
     @namespaced
     @online

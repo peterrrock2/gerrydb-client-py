@@ -497,33 +497,40 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         return View.from_gpkg(gpkg_path)
 
     def _get(self, path: str, namespace: str, request_timeout: int = 3600) -> Path:
-        """Downloads view data as a GeoPackage."""
+        """Downloads view data as a GeoPackage, streaming it to the cache file."""
         # Generate a new render (assuming the view exists).
         # These can take a long time to render depending on the size of the view.
         log.debug(f"Requesting view {path} in namespace {namespace}")
-        gpkg_response = self.session.client.post(
+        with self.session.client.stream(
+            "POST",
             f"{self.base_url}/{namespace}/{path}",
             timeout=request_timeout,
-        )
+        ) as gpkg_response:
+            if gpkg_response.status_code >= 400:
+                gpkg_response.read()
+                gpkg_response.raise_for_status()
+            if gpkg_response.next_request is not None:  # pragma: no cover
+                # Redirect to Google Cloud Storage (probably). Stream like the
+                # direct path; httpx decompresses the gzipped blob chunk-wise.
+                with self.session.client.stream(
+                    "GET", gpkg_response.next_request.url
+                ) as redirect_response:
+                    if redirect_response.status_code >= 400:
+                        redirect_response.read()
+                        redirect_response.raise_for_status()
+                    gpkg_render_id = redirect_response.headers["x-goog-meta-gerrydb-view-render-id"]
+                    return self.session.cache.upsert_view_gpkg(
+                        namespace=normalize_path(namespace, path_length=1),
+                        path=normalize_path(path),
+                        render_id=gpkg_render_id,
+                        content=redirect_response.iter_bytes(),
+                    )
 
-        if gpkg_response.status_code >= 400:
-            gpkg_response.raise_for_status()
-        if gpkg_response.next_request is not None:  # pragma: no cover
-            # Redirect to Google Cloud Storage (probably).
-            gpkg_response = self.session.client.get(
-                gpkg_response.next_request.url
-            )  # pragma: no cover
-            gpkg_response.raise_for_status()  # pragma: no cover
-            gpkg_render_id = gpkg_response.headers[
-                "x-goog-meta-gerrydb-view-render-id"
-            ]  # pragma: no cover
-        else:
             gpkg_render_id = gpkg_response.headers["x-gerrydb-view-render-id"]
-
-        log.debug(f"Got render ID {gpkg_render_id}. Upserting view GPKG.")
-        return self.session.cache.upsert_view_gpkg(
-            namespace=normalize_path(namespace, path_length=1),
-            path=normalize_path(path),
-            render_id=gpkg_render_id,
-            content=gpkg_response.content,
-        )
+            log.debug(f"Got render ID {gpkg_render_id}. Upserting view GPKG.")
+            return self.session.cache.upsert_view_gpkg(
+                namespace=normalize_path(namespace, path_length=1),
+                path=normalize_path(path),
+                render_id=gpkg_render_id,
+                content=gpkg_response.iter_bytes(),
+            )

@@ -8,7 +8,7 @@ import weakref
 from datetime import datetime
 from os import PathLike
 from pathlib import Path
-from typing import Optional, TypeVar, Union
+from typing import Iterable, Optional, TypeVar, Union
 
 from gerrydb.logging import log
 from gerrydb.schemas import BaseModel
@@ -63,10 +63,16 @@ class GerryCache:
             self._conn.close()
             self._conn = None
 
-    def upsert_graph_gpkg(self, namespace: str, path: str, render_id: str, content: bytes) -> Path:
+    def upsert_graph_gpkg(
+        self, namespace: str, path: str, render_id: str, content: Union[bytes, Iterable[bytes]]
+    ) -> Path:
         gpkg_path = self.data_dir / f"{render_id}.gpkg"
         with open(gpkg_path, "wb") as gpkg_fp:
-            bytes_written = gpkg_fp.write(content)
+            if isinstance(content, bytes):
+                bytes_written = gpkg_fp.write(content)
+            else:
+                # Streamed download: write chunks as they arrive.
+                bytes_written = sum(gpkg_fp.write(chunk) for chunk in content)
 
         kb_written = bytes_written // 1024 + 1  # always round up to nearest kb
 
@@ -128,7 +134,9 @@ class GerryCache:
 
         return gpkg_path
 
-    def upsert_view_gpkg(self, namespace: str, path: str, render_id: str, content: bytes) -> Path:
+    def upsert_view_gpkg(
+        self, namespace: str, path: str, render_id: str, content: Union[bytes, Iterable[bytes]]
+    ) -> Path:
         """Upserts a view's GeoPackage into the cache.
 
         Returns:
@@ -136,7 +144,11 @@ class GerryCache:
         """
         gpkg_path = self.data_dir / f"{render_id}.gpkg"
         with open(gpkg_path, "wb") as gpkg_fp:
-            bytes_written = gpkg_fp.write(content)
+            if isinstance(content, bytes):
+                bytes_written = gpkg_fp.write(content)
+            else:
+                # Streamed download: write chunks as they arrive.
+                bytes_written = sum(gpkg_fp.write(chunk) for chunk in content)
 
         kb_written = bytes_written // 1024 + 1  # always round up to nearest kb
 

@@ -5,6 +5,7 @@ import json
 import logging
 import sqlite3
 import time
+import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
@@ -152,11 +153,9 @@ class DBGraph:
         ret = cls(meta=GraphMeta(**raw_meta), gpkg_path=path, conn=conn)
         end = time.perf_counter()
         log.debug(f"Time to convert gpkg: {end - start}")
-        if conn is not None:
-            try:
-                conn.close()
-            except sqlite3.OperationalError as e:
-                log.warning(f"Failed to close connection: {e}")
+        # The graph object owns this connection (to_networkx queries it later);
+        # close it when the object is garbage collected, not here.
+        weakref.finalize(ret, conn.close)
         return ret
 
     def to_networkx(

@@ -4,6 +4,13 @@ import pandas as pd
 import pytest
 from shapely.geometry import Point, Polygon
 
+from gerrydb.repos.geography import canonicalize_geo
+
+
+def canonical(series):
+    """What the server stores: coordinates snapped to the canonical grid."""
+    return series.apply(canonicalize_geo)
+
 from gerrydb.exceptions import ForkingError
 
 
@@ -110,7 +117,7 @@ def test_basic_view(
 
     assert land_df["area_land"].equals(me_2010_gdf["area_land"])
     assert land_df["area_water"].equals(me_2010_gdf["area_water"])
-    assert land_df["geometry"].equals(me_2010_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2010_gdf["geometry"]))
 
     # Aliases resolve to the canonical rendered column names via View.col.
     assert land_view.col("aland") == "area_land"
@@ -215,7 +222,7 @@ def test_basic_view_with_graph_no_plan(
 
     assert land_df["area_land"].equals(me_2010_gdf["ALAND10"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
-    assert land_df["geometry"].equals(me_2010_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2010_gdf["geometry"]))
     graph_out = land_view.to_graph(plans=True, geometry=True)
     assert graphs_equal(graph_out, me_2010_nx_graph)
 
@@ -351,7 +358,7 @@ def test_basic_view_with_graph_and_plan(
 
     assert land_df["area_land"].equals(me_2010_gdf["ALAND10"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
-    assert land_df["geometry"].equals(me_2010_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2010_gdf["geometry"]))
     assert land_df["test_plan"].astype(int).equals(pd.Series(me_2010_plan_dict).sort_index())
     partition_dict = land_view.to_partition_dict(autotally=True)
     assert set(partition_dict["test_plan"].updaters.keys()) == set(["cut_edges", "total_pop"])
@@ -736,7 +743,7 @@ def test_patch_view_with_new_geos(
 
     assert land_df["area_land"].equals(me_2020_gdf["ALAND20"])
     assert land_df["area_water"].equals(me_2020_gdf["AWATER20"])
-    assert land_df["geometry"].equals(me_2020_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2020_gdf["geometry"]))
 
 
 @pytest.mark.slow
@@ -1277,10 +1284,10 @@ def test_several_cross_namespace_views(
 
     assert land_df["area_land"].equals(me_2020_gdf["ALAND20"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
-    assert land_df["geometry"].equals(me_2020_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2020_gdf["geometry"]))
     assert set_df["full_name"].astype(str).equals(me_2010_gdf["NAMELSAD10"].astype(str))
     assert set_df["lsad"].astype(str).equals(me_2010_gdf["LSAD10"].astype(str))
-    assert set_df["geometry"].equals(me_2020_gdf["geometry"])
+    assert set_df["geometry"].equals(canonical(me_2020_gdf["geometry"]))
     assert set_df["internal_point"].equals(land_df["internal_point"])
     assert full_df["area_land"].equals(land_df["area_land"])
     assert full_df["area_water"].equals(land_df["area_water"])
@@ -1375,7 +1382,7 @@ def test_basic_view_update_column(
 
     assert land_df["area_land"].equals(me_2010_gdf["ALAND10"])
     assert land_df["area_water"].equals(me_2010_gdf["AWATER10"])
-    assert land_df["geometry"].equals(me_2010_gdf["geometry"])
+    assert land_df["geometry"].equals(canonical(me_2010_gdf["geometry"]))
 
 
 @pytest.mark.slow

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 import httpx
 import msgpack
 import shapely.wkb
-from shapely import Point
+from shapely import Point, set_precision
 from shapely.geometry.base import BaseGeometry
 
 from gerrydb.exceptions import ForkingError, RequestError
@@ -27,6 +27,22 @@ if TYPE_CHECKING:
 
 GeoValType = Union[None, BaseGeometry, Tuple[Optional[BaseGeometry], Optional[Point]]]
 GeosType = dict[Union[str, Geography], GeoValType]
+
+# Canonical coordinate grid, in degrees (~0.11 m). Geometries are snapped to
+# this grid before WKB serialization and hashing so that
+# pull -> reproject -> upload round trips re-serialize to identical bytes and
+# dedup against stored geometries. Must match the server's grid; the grid is
+# permanent (changing it invalidates every stored geometry hash).
+GEO_GRID_SIZE = 1e-6
+
+
+def canonicalize_geo(geo: BaseGeometry) -> BaseGeometry:
+    """Snaps a geometry to the canonical grid.
+
+    Pointwise, so on-grid (census-published) coordinates round-trip
+    byte-identically; empty geometries pass through unchanged.
+    """
+    return geo if geo.is_empty else set_precision(geo, GEO_GRID_SIZE, mode="pointwise")
 
 from gerrydb.logging import log
 
@@ -57,7 +73,9 @@ def _serialize_geos(geographies: GeosType) -> list[GeographyCreate]:
         serialized.append(
             GeographyCreate(
                 path=key.full_path if isinstance(key, Geography) else key,
-                geography=None if geo is None else shapely.wkb.dumps(geo),
+                geography=(
+                    None if geo is None else shapely.wkb.dumps(canonicalize_geo(geo))
+                ),
                 internal_point=None if point is None else shapely.wkb.dumps(point),
             ).model_dump()
         )

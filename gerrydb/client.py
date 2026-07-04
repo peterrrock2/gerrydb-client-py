@@ -34,7 +34,7 @@ from gerrydb.repos import (
     ViewTemplateRepo,
 )
 from gerrydb.repos.base import normalize_path
-from gerrydb.repos.geography import GeoValType
+from gerrydb.repos.geography import GeoValType, canonicalize_geo
 from gerrydb.schemas import (
     Column,
     ColumnSet,
@@ -588,8 +588,12 @@ class WriteContext:
         empty_hash = hashlib.md5(empty_polygon_wkb).hexdigest()
 
         if "geometry" in df.columns:
+            # Hash the canonical (grid-snapped) bytes: the server snaps before
+            # hashing, so raw off-grid bytes would never match stored hashes.
             df_path_hash_dict = df.geometry.apply(
-                lambda x: hashlib.md5(WKBElement(x.wkb, srid=4269).data).hexdigest()
+                lambda x: hashlib.md5(
+                    WKBElement(canonicalize_geo(x).wkb, srid=4269).data
+                ).hexdigest()
             ).to_dict()
         else:
             df_path_hash_dict = {idx: empty_hash for idx in df.index}

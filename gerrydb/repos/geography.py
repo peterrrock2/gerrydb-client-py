@@ -69,8 +69,16 @@ def _parse_geo_response(response: httpx.Response) -> list[Geography]:
     """Parses `Geography` objects from a MessagePack-encoded API response."""
     response_geos = []
     for response_geo in msgpack.loads(response.content):
-        response_geo["geography"] = shapely.wkb.loads(response_geo["geography"])
-        response_geo["internal_point"] = shapely.wkb.loads(response_geo["internal_point"])
+        response_geo["geography"] = (
+            None
+            if response_geo["geography"] is None
+            else shapely.wkb.loads(response_geo["geography"])
+        )
+        response_geo["internal_point"] = (
+            None
+            if response_geo["internal_point"] is None
+            else shapely.wkb.loads(response_geo["internal_point"])
+        )
         response_geos.append(Geography(**response_geo))
     return response_geos
 
@@ -92,11 +100,16 @@ class GeoImporter:
         self.client.close()
 
     @err("Failed to create geographies")
-    def create(self, geographies: dict[str, GeoValType]) -> list[Geography]:
+    def create(
+        self, geographies: dict[str, GeoValType], return_geos: bool = False
+    ) -> list[Geography]:
         """Creates one or more geographies.
 
         Args:
             geographies: Mapping from geography paths to shapes.
+            return_geos: If True, the response echoes the stored geometries.
+                By default only paths and timestamps come back, which is far
+                lighter for bulk imports.
 
         Raises:
             RequestError: If the geographies cannot be created on the server side,
@@ -105,14 +118,17 @@ class GeoImporter:
         Returns:
             A list of new geographies.
         """
-        return self._send(geographies, method="POST")
+        return self._send(geographies, method="POST", return_geos=return_geos)
 
     @err("Failed to update geographies")
-    def update(self, geographies: GeosType) -> list[Geography]:
+    def update(
+        self, geographies: GeosType, return_geos: bool = False
+    ) -> list[Geography]:
         """Updates the shapes of one or more geographies.
 
         Args:
             geographies: Mapping from geography paths or `Geography` objects to shapes.
+            return_geos: If True, the response echoes the stored geometries.
 
         Raises:
             RequestError: If the geographies cannot be updated on the server side,
@@ -121,15 +137,20 @@ class GeoImporter:
         Returns:
             A list of updated geographies.
         """
-        return self._send(geographies, method="PATCH")  # pragma: no cover
+        return self._send(
+            geographies, method="PATCH", return_geos=return_geos
+        )  # pragma: no cover
 
-    def _send(self, geographies: GeosType, method: str) -> list[Geography]:
+    def _send(
+        self, geographies: GeosType, method: str, return_geos: bool = False
+    ) -> list[Geography]:
         """Creates or updates one or more geographies."""
         response = self.client.request(
             method,
             f"{self.repo.base_url}/{self.namespace}",
             content=msgpack.dumps(_serialize_geos(geographies)),
             headers={"content-type": "application/msgpack"},
+            params={"return_geos": return_geos},
         )
         response.raise_for_status()
         return _parse_geo_response(response)
@@ -155,11 +176,16 @@ class AsyncGeoImporter:
         await self.client.aclose()
 
     @err("Failed to create geographies")
-    async def create(self, geographies: dict[str, GeoValType]) -> list[Geography]:
+    async def create(
+        self, geographies: dict[str, GeoValType], return_geos: bool = False
+    ) -> list[Geography]:
         """Creates one or more geographies.
 
         Args:
             geographies: Mapping from geography paths to shapes.
+            return_geos: If True, the response echoes the stored geometries.
+                By default only paths and timestamps come back, which is far
+                lighter for bulk imports.
 
         Raises:
             RequestError: If the geographies cannot be created on the server side,
@@ -168,7 +194,9 @@ class AsyncGeoImporter:
         Returns:
             A list of new geographies.
         """
-        return await self._send(geographies, method="POST")
+        return await self._send(
+            geographies, method="POST", queries={"return_geos": return_geos}
+        )
 
     @err("Failed to update geographies")
     async def update(
@@ -176,11 +204,13 @@ class AsyncGeoImporter:
         geographies: GeosType,
         *,
         allow_empty_polys: bool,
+        return_geos: bool = False,
     ) -> list[Geography]:
         """Updates the shapes of one or more geographies.
 
         Args:
             geographies: Mapping from geography paths or `Geography` objects to shapes.
+            return_geos: If True, the response echoes the stored geometries.
 
         Raises:
             RequestError: If the geographies cannot be updated on the server side,
@@ -192,7 +222,7 @@ class AsyncGeoImporter:
         return await self._send(
             geographies,
             method="PATCH",
-            queries={"allow_empty_polys": allow_empty_polys},
+            queries={"allow_empty_polys": allow_empty_polys, "return_geos": return_geos},
         )
 
     async def _send(

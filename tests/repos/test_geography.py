@@ -27,9 +27,18 @@ class SimpleNamespace(_BaseNS):
 def test_geography_repo_create(client_ns):
     with client_ns.context(notes="adding a geography") as ctx:
         with ctx.geo.bulk() as bulk_ctx:
-            geos = bulk_ctx.create({f"{idx:010d}": box(0, 0, 1, 1) for idx in range(10000)})
+            geos = bulk_ctx.create(
+                {f"{idx:010d}": box(0, 0, 1, 1) for idx in range(9000)}
+            )
+            echoed = bulk_ctx.create(
+                {f"{idx:010d}": box(0, 0, 1, 1) for idx in range(9000, 10000)},
+                return_geos=True,
+            )
 
-    assert all([geo.geography == box(0, 0, 1, 1) for geo in geos])
+    # The default response is slim: paths and timestamps, no geometry echo.
+    assert all(geo.geography is None for geo in geos)
+    assert all(geo.valid_from is not None for geo in geos)
+    assert all(geo.geography == box(0, 0, 1, 1) for geo in echoed)
 
 
 pytestmark = [

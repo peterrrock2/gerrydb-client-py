@@ -38,13 +38,15 @@ NamespacedGerryPath = Annotated[
         min_length=2,
     ),
 ]
-# / allowed at start. 1-3 segments. Leading character from each segment must be a-z0-9 and A-Z
-# allowed in last segment for weird GEOIDs.
+# / allowed at start. 1-3 segments. A-Z allowed in the last segment for weird
+# GEOIDs (e.g. VTDs): after the first character in a bare single-segment path,
+# and anywhere in the final segment of a namespaced path. Prefix (namespace)
+# segments are lowercase-only.
 NamespacedGerryGeoPath = Annotated[
     str,
     Field(
-        pattern=r"^/?[a-z0-9][a-z0-9-_.:]+(?:/[a-z0-9][a-z0-9-_.:]+){0,1}"
-        r"(?:/[a-zA-Z0-9][a-zA-Z0-9-_.:]+){0,1}$",
+        pattern=r"^/?(?:[a-z0-9][a-z0-9-_.:]+(?:/[a-z0-9][a-z0-9-_.:]+)?"
+        r"/[a-zA-Z0-9][a-zA-Z0-9-_.:]+|[a-z0-9][a-zA-Z0-9-_.:]+)$",
         max_length=255,
         min_length=2,
     ),

@@ -241,7 +241,7 @@ class GraphRepo(NamespacedObjectRepo[Graph]):
         description: str,
         proj: Optional[str] = None,
         timeout: int = 1200,
-    ) -> DBGraph:
+    ) -> GraphMeta:
         """
         Imports a dual graph from a NetworkX graph.
 
@@ -261,12 +261,13 @@ class GraphRepo(NamespacedObjectRepo[Graph]):
                 or if the parameters fail validation.
 
         Returns:
-            The new districting plan in the form of a gerrydb `Graph` schema
-            object.
+            Metadata for the new graph. The rendered graph is not downloaded
+            here; fetch the graph (e.g. ``db.graphs[path]``) to render it.
         """
         log.debug("IN GRAPH REPO CREATE")
         response = self.ctx.client.post(
             f"{self.base_url}/{namespace}",
+            params={"include_edges": "false"},
             json=GraphCreate(
                 path=path,
                 locality=(locality.canonical_path if isinstance(locality, Locality) else locality),
@@ -292,13 +293,7 @@ class GraphRepo(NamespacedObjectRepo[Graph]):
                 f"Failed to create graph. Got code {response.status_code}. Details: {response.json().get('detail', 'No details provided.')}"
             )
 
-        graph_meta = self.schema(**response.json())
-
-        log.debug("THE GRAPH PATH IS %s", graph_meta.path)
-        log.debug("THE GRAPH NAMESPACE IS %s", graph_meta.namespace)
-        gpkg_path = self._get(path=graph_meta.path, namespace=graph_meta.namespace)
-        log.debug("THE GPKG PATH IS %s", gpkg_path)
-        return DBGraph.from_gpkg(gpkg_path)
+        return GraphMeta(**response.json())
 
     def _get(self, path: str, namespace: str, request_timeout: int = 1200) -> Path:
         """Downloads graph data as a GeoPackage, streaming it to the cache file."""

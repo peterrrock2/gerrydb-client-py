@@ -131,6 +131,43 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
         response.raise_for_status()
         return Column(**response.json())
 
+    @err("Failed to run column preflight")
+    @online
+    def preflight_duplicates(self, candidates: list[dict], namespace: str) -> list[dict]:
+        """Asks the server which candidate columns' content already exists.
+
+        Each candidate is {name, locality, layer, hash_hi, hash_lo}; the
+        response pairs each name with the namespace/path of a readable
+        column holding identical content, or nulls.
+        """
+        response = self.session.client.post(
+            f"/column-refs/{namespace}/preflight", json={"candidates": candidates}
+        )
+        response.raise_for_status()
+        return response.json()["results"]
+
+    @err("Failed to create column reference")
+    @write_context
+    @online
+    def create_reference(
+        self, path: str, *, target_namespace: str, target_path: str, namespace: str
+    ) -> dict:
+        """Creates a reference in `namespace` to an existing column.
+
+        References may only target columns in public namespaces (or the
+        caller's own); the referenced values are never copied.
+        """
+        response = self.ctx.client.post(
+            f"/column-refs/{namespace}",
+            json={
+                "path": path,
+                "target_namespace": target_namespace,
+                "target_path": target_path,
+            },
+        )
+        response.raise_for_status()
+        return response.json()
+
     @err("Failed to set column values")
     @namespaced
     @write_context

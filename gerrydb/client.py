@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import warnings
 import os
 import weakref
 from dataclasses import dataclass
@@ -13,6 +14,8 @@ import geopandas as gpd
 import httpx
 import pandas as pd
 import tomlkit
+
+from gerrydb.value_hash import column_fingerprint, infer_column_type
 from geoalchemy2.elements import WKBElement
 from pandas.core.indexes.base import Index as pdIndex
 from rapidfuzz import fuzz, process
@@ -870,19 +873,21 @@ class WriteContext:
     def load_dataframe(
         self,
         df: Union[pd.DataFrame, gpd.GeoDataFrame],
-        columns: Union[pdIndex, list[str], dict[str, Column]],
+        columns_to_update: Union[pdIndex, list[str], dict[str, Column], None] = None,
         *,
+        columns: Union[pdIndex, list[str], dict[str, Column], None] = None,
         create_geos: bool = False,
         patch_geos: bool = False,
         upsert_geos: bool = False,
         include_geos: bool = True,
         allow_empty_polys: bool = False,
+        force_duplicate_column: bool = False,
         namespace: Optional[str] = None,
         locality: Optional[Union[str, Locality]] = None,
         layer: Optional[Union[str, GeoLayer]] = None,
         batch_size: int = 5000,
         max_conns: int = 4,
-    ) -> None:
+    ) -> dict:
         """
         Imports a DataFrame to GerryDB.
 
@@ -922,6 +927,17 @@ class WriteContext:
             max_conns: Maximum number of simultaneous API connections.
         """
         log.debug("IN THE LOAD FUNCTION")
+        if columns is not None:
+            warnings.warn(
+                "`columns` is deprecated; use `columns_to_update`.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if columns_to_update is None:
+                columns_to_update = columns
+        if columns_to_update is None:
+            raise ValueError("`columns_to_update` must be provided.")
+        columns = columns_to_update
         namespace = self.db.namespace if namespace is None else namespace
 
         if include_geos and not ("geometry" in df.columns):
@@ -997,6 +1013,36 @@ class WriteContext:
                 max_conns=max_conns,
             )
 
+        report = {"referenced": {}, "uploaded": []}
+        if not force_duplicate_column and locality is not None and layer is not None:
+            columns, report = self.__reference_duplicate_columns(
+                df=df, columns=columns, namespace=namespace,
+                locality=locality, layer=layer,
+            )
+            if len(columns) == 0:
+                log.debug("ALL COLUMNS REFERENCED; NOTHING TO UPLOAD")
+                return report
+
+        if isinstance(columns, dict):
+            resolved = dict(columns)
+        else:
+            resolved = {}
+            for c in columns:
+                if c in ("geometry", "internal_point"):
+                    continue
+                try:
+                    resolved[c] = self.columns.get(c)
+                except Exception:
+                    resolved[c] = None
+        for df_col, col_meta in resolved.items():
+            if col_meta is not None and col_meta.namespace != namespace:
+                raise ValueError(
+                    f"Column '{df_col}' resolves to a reference to "
+                    f"'{col_meta.namespace}/{col_meta.path}'; values cannot be "
+                    "uploaded through a reference. Upload under a different "
+                    "column name to diverge from the referenced data."
+                )
+
         log.debug("VALIDATING COLUMNS")
         self.__validate_columns(columns)
 
@@ -1013,7 +1059,89 @@ class WriteContext:
         log.debug("LOADING COLUMN VALUES")
         _run(_load_column_values(self.columns, df, columns, batch_size, max_conns))
 
+        report["uploaded"] = [
+            col.path if hasattr(col, "path") else str(name)
+            for name, col in columns.items()
+            if name not in ("geometry", "internal_point")
+        ]
         log.debug("FINISHED LOADING DATAFRAME")
+        return report
+
+    def __reference_duplicate_columns(self, *, df, columns, namespace, locality, layer):
+        """Replaces candidate uploads whose content already exists in a
+        readable namespace with column references.
+
+        Content matching is by fingerprint (see gerrydb.value_hash) plus
+        name and (locality, layer) context; matched columns are created as
+        references (no values move) and dropped from the upload set. Pass
+        `force_duplicate_column=True` to skip this and upload real copies.
+        """
+        names = {}
+        if isinstance(columns, dict):
+            for df_col, col_meta in columns.items():
+                names[df_col] = col_meta.path if hasattr(col_meta, "path") else str(col_meta)
+        else:
+            names = {c: str(c) for c in columns if c not in ("geometry", "internal_point")}
+
+        candidates = []
+        for df_col, name in names.items():
+            if df_col not in df.columns:
+                continue
+            col_type = infer_column_type(df[df_col])
+            if col_type is None:
+                continue
+            hi, lo = column_fingerprint(df[df_col], col_type)
+            candidates.append(
+                {
+                    "name": name,
+                    "locality": locality.canonical_path if hasattr(locality, "canonical_path") else str(locality),
+                    "layer": layer.path if hasattr(layer, "path") else str(layer),
+                    "hash_hi": hi,
+                    "hash_lo": lo,
+                }
+            )
+        report = {"referenced": {}, "uploaded": []}
+        if not candidates:
+            return columns, report
+
+        results = self.columns.preflight_duplicates(candidates, namespace=namespace)
+        matched = {r["name"]: r for r in results if r.get("namespace") is not None}
+        if not matched:
+            return columns, report
+
+        for df_col, name in list(names.items()):
+            match = matched.get(name)
+            if match is None:
+                continue
+            try:
+                self.columns.create_reference(
+                    name,
+                    target_namespace=match["namespace"],
+                    target_path=match["path"],
+                    namespace=namespace,
+                )
+            except Exception:
+                # Most commonly the name is already a real column in this
+                # namespace (the pre-create workflow); fall back to a normal
+                # upload rather than failing the load.
+                log.info(
+                    "Column '%s' matches %s/%s but a reference could not be "
+                    "created (name already taken?); uploading normally.",
+                    name, match["namespace"], match["path"],
+                )
+                continue
+            report["referenced"][name] = f'{match["namespace"]}/{match["path"]}'
+            log.warning(
+                "Column '%s' already exists as %s/%s with identical content; "
+                "created a reference instead of uploading. Pass "
+                "force_duplicate_column=True to upload a copy.",
+                name, match["namespace"], match["path"],
+            )
+            if isinstance(columns, dict):
+                columns = {k: v for k, v in columns.items() if k != df_col}
+            else:
+                columns = [c for c in columns if c != df_col]
+        return columns, report
 
 
 # based on https://stackoverflow.com/a/61478547

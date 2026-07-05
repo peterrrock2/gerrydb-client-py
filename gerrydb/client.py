@@ -885,7 +885,7 @@ class WriteContext:
         namespace: Optional[str] = None,
         locality: Optional[Union[str, Locality]] = None,
         layer: Optional[Union[str, GeoLayer]] = None,
-        batch_size: int = 5000,
+        batch_size: int = 25000,
         max_conns: int = 4,
     ) -> dict:
         """
@@ -1023,17 +1023,38 @@ class WriteContext:
                 log.debug("ALL COLUMNS REFERENCED; NOTHING TO UPLOAD")
                 return report
 
+        def fetch_column_map() -> dict[str, Column]:
+            by_path = {}
+            for col in self.columns.all(namespace=namespace):
+                by_path[col.canonical_path] = col
+                for alias in col.aliases:
+                    by_path[alias] = col
+            return by_path
+
+        # One listing resolves every name; a GET per column made a 50-column
+        # upload pay ~100 metadata round trips. Names the listing cannot see
+        # still fall back to a per-path GET: listings only carry columns the
+        # namespace owns, while a GET resolves cross-namespace references,
+        # and the reference guard below needs that resolution.
+        column_map = fetch_column_map()
+
+        def resolve_column(name: str) -> Optional[Column]:
+            col = column_map.get(normalize_path(name))
+            if col is None:
+                try:
+                    col = self.columns.get(name, namespace=namespace)
+                except Exception:
+                    col = None
+            return col
+
         if isinstance(columns, dict):
             resolved = dict(columns)
         else:
-            resolved = {}
-            for c in columns:
-                if c in ("geometry", "internal_point"):
-                    continue
-                try:
-                    resolved[c] = self.columns.get(c)
-                except Exception:
-                    resolved[c] = None
+            resolved = {
+                c: resolve_column(c)
+                for c in columns
+                if c not in ("geometry", "internal_point")
+            }
         for df_col, col_meta in resolved.items():
             if col_meta is not None and col_meta.namespace != namespace:
                 raise ValueError(
@@ -1046,15 +1067,20 @@ class WriteContext:
         log.debug("VALIDATING COLUMNS")
         self.__validate_columns(columns)
 
-        # TODO: Check to see if grabbing all of the columns and then filtering
-        # is significantly different from a data transfer perspective in the
-        # average case.
         if not isinstance(columns, dict):
-            columns = {
-                c: self.columns.get(c)
-                for c in df.columns
-                if c not in ["geometry", "internal_point"]
-            }
+            if report["referenced"]:
+                # The dedup flow just created references; refresh so the new
+                # paths resolve.
+                column_map = fetch_column_map()
+            columns = {}
+            for c in df.columns:
+                if c in ("geometry", "internal_point"):
+                    continue
+                col = column_map.get(normalize_path(c))
+                if col is None:
+                    # Raises like the old per-column GET did on a true miss.
+                    col = self.columns.get(c, namespace=namespace)
+                columns[c] = col
 
         log.debug("LOADING COLUMN VALUES")
         _run(_load_column_values(self.columns, df, columns, batch_size, max_conns))

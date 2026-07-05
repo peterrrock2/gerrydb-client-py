@@ -114,22 +114,9 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
 
         return Column(**response.json())
 
-    @err("Failed to retrieve column names")
-    @online
-    def all(self) -> list[str]:
-        response = self.session.client.get(f"/columns/{self.session.namespace}")
-        response.raise_for_status()
-
-        return [Column(**item) for item in response.json()]
-
-    @err("Failed to retrieve column")
-    @online
-    @namespaced
-    def get(self, path: str, namespace: str = None) -> Column:
-        path = normalize_path(path)
-        response = self.session.client.get(f"/columns/{self.session.namespace}/{path}")
-        response.raise_for_status()
-        return Column(**response.json())
+    # all() and get() come from NamespacedObjectRepo: the base methods honor
+    # the resolved namespace argument; earlier overrides here silently read
+    # session.namespace instead.
 
     @err("Failed to run column preflight")
     @online

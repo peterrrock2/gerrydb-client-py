@@ -193,7 +193,7 @@ class NamespacedObjectRepo(Generic[SchemaType]):
             RequestError: If the object cannot be read on the server side,
                 or if no namespace is specified.
         """
-        path = normalize_path(path, case_sensitive_uid="geometries" in self.base_url)
+        path = normalize_path(path, case_sensitive_uid="geographies" in self.base_url)
 
         response = self.session.client.get(f"{self.base_url}/{namespace}/{path}")
         response.raise_for_status()

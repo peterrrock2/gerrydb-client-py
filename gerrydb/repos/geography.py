@@ -396,16 +396,10 @@ class GeographyRepo(NamespacedObjectRepo[Geography]):
         allow_empty_polys: bool = False,
     ) -> bool:
         """Fork the geographies from one namespace into another"""
-        self.check_forkability(
-            path=path,
-            namespace=namespace,
-            layer_name=layer_name,
-            source_namespace=source_namespace,
-            source_layer_name=source_layer_name,
-            allow_extra_source_geos=allow_extra_source_geos,
-            allow_empty_polys=allow_empty_polys,
-        )
-
+        # No client-side pre-check: the POST runs the identical server-side
+        # validation and its CONFLICT/FORBIDDEN details surface through
+        # ForkingError below, so a pre-flight just doubles two full-layer
+        # path+hash scans.
         try:
             response = self.session.client.post(
                 f"/__geography_fork/{namespace}/{path}/{layer_name}?mode=compare&source_namespace={source_namespace}&source_layer={source_layer_name}&allow_extra_source_geos={allow_extra_source_geos}&allow_empty_polys={allow_empty_polys}"

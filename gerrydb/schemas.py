@@ -435,7 +435,9 @@ class Plan(PlanBase):
     created_at: datetime
     num_districts: int
     complete: bool
-    assignments: dict[NamespacedGerryPath, Optional[str]]
+    # None on objects parsed from list endpoints: plan listings return
+    # metadata only; fetch a single plan for its assignments.
+    assignments: Optional[dict[NamespacedGerryPath, Optional[str]]] = None
 
 
 class GraphBase(BaseModel):

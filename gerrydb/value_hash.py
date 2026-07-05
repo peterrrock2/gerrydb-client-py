@@ -11,6 +11,7 @@ import struct
 
 import pandas as pd
 
+from gerrydb.repos.base import normalize_path
 from gerrydb.schemas import ColumnType
 
 _TYPE_TAGS = {
@@ -69,7 +70,9 @@ def column_fingerprint(series: pd.Series, col_type: ColumnType) -> tuple[int, in
     """Fingerprint of a DataFrame column indexed by geography path."""
     hi = lo = 0
     for path, value in series.items():
-        h, l = pair_digest(str(path), col_type, value)
+        # Normalize to match the server's stored geography path; otherwise
+        # the per-pair digest diverges and dedup silently never matches.
+        h, l = pair_digest(normalize_path(str(path), case_sensitive_uid=True), col_type, value)
         hi ^= h
         lo ^= l
     return hi, lo

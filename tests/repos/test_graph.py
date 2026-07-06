@@ -178,7 +178,9 @@ def test_bad_to_networkx():
         GraphLoadError,
         match="Unexpected or missing columns in Graph Geopackage Geometry table.",
     ):
-        DBGraph.from_gpkg(bad)
+        # The networkx build is lazy, so the malformed table surfaces on
+        # first .graph access rather than at load time.
+        DBGraph.from_gpkg(bad).graph
 
 
 def test_graph_with_geometry():

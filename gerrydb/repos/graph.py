@@ -114,9 +114,20 @@ class DBGraph:
         self._gpkg_path = gpkg_path
         self._conn = conn
 
-        # Actually load the graph.
-        log.debug("INCLUDE GEOMETRIES %s", include_geometries)
-        self.graph = self.to_networkx(include_geometries=include_geometries)
+        self._include_geometries = include_geometries
+        self._graph = None
+
+    @property
+    def graph(self):
+        """The graph as networkx, built on first access.
+
+        Block-level graphs take seconds to materialize; metadata-only uses
+        never need the build.
+        """
+        if self._graph is None:
+            log.debug("INCLUDE GEOMETRIES %s", self._include_geometries)
+            self._graph = self.to_networkx(include_geometries=self._include_geometries)
+        return self._graph
 
     @classmethod
     def from_gpkg(

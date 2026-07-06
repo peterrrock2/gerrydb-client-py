@@ -348,8 +348,10 @@ class View:
     @property
     def geographies(self) -> Generator[Geography, None, None]:
         """Yields geographies in the view."""
-        raw_geo_meta = self._conn.execute("SELECT meta_id, value FROM gerrydb_geo_meta").fetchone()
-        geo_meta = {raw_geo_meta[0]: ObjectMeta(**json.loads(raw_geo_meta[1]))}
+        # fetchall: a view carries one meta row per distinct import batch,
+        # and indexing below KeyErrors if any but the first is referenced.
+        raw_geo_meta = self._conn.execute("SELECT meta_id, value FROM gerrydb_geo_meta").fetchall()
+        geo_meta = {row[0]: ObjectMeta(**json.loads(row[1])) for row in raw_geo_meta}
 
         raw_geos = self._conn.execute(
             f"""SELECT {self.path}.path, geography, internal_point, meta_id, valid_from

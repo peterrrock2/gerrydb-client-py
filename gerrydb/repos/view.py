@@ -403,6 +403,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         valid_at: Optional[datetime] = None,
         proj: Optional[str] = None,
         use_locality_proj: bool = False,
+        include_plans: bool = False,
     ) -> View:
         """Creates a view.
 
@@ -470,7 +471,11 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         view_meta = ViewMeta(**response.json())
         log.debug(f"Time to parse view: {time.perf_counter() - start}")
         start = time.perf_counter()
-        gpkg_path = self._get(path=view_meta.path, namespace=view_meta.namespace)
+        gpkg_path = self._get(
+            path=view_meta.path,
+            namespace=view_meta.namespace,
+            include_plans=include_plans,
+        )
         log.debug(f"Time to get gpkg_path: {time.perf_counter() - start}")
         return View.from_gpkg(gpkg_path)
 
@@ -481,24 +486,40 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         path: str,
         namespace: Optional[str] = None,
         request_timeout: int = 3600,
+        include_plans: bool = False,
     ) -> View:
         """Gets a view.
+
+        Plans are opt-in: every plan on the view's geo set costs a full
+        member-sized table in the GeoPackage, so the default render carries
+        none. Plan-bearing requests skip the local cache (which holds the
+        plan-less shape) and re-download.
 
         Raises:
             RequestError: If the view cannot be retrieved on the server side,
                 if the parameters fail validation, or if no namespace is provided.
         """
         log.debug(f"Getting view {path} in namespace {namespace}")
-        gpkg_path = self.session.cache.get_view_gpkg(
-            namespace=normalize_path(namespace, path_length=1),
-            path=normalize_path(path),
+        gpkg_path = (
+            None
+            if include_plans
+            else self.session.cache.get_view_gpkg(
+                namespace=normalize_path(namespace, path_length=1),
+                path=normalize_path(path),
+            )
         )
         if gpkg_path is None:
             log.debug(f"View {path} not found in cache, downloading.")
-            gpkg_path = self._get(path, namespace, request_timeout)
+            gpkg_path = self._get(path, namespace, request_timeout, include_plans=include_plans)
         return View.from_gpkg(gpkg_path)
 
-    def _get(self, path: str, namespace: str, request_timeout: int = 3600) -> Path:
+    def _get(
+        self,
+        path: str,
+        namespace: str,
+        request_timeout: int = 3600,
+        include_plans: bool = False,
+    ) -> Path:
         """Downloads view data as a GeoPackage, streaming it to the cache file."""
         # Generate a new render (assuming the view exists).
         # These can take a long time to render depending on the size of the view.
@@ -506,6 +527,7 @@ class ViewRepo(NamespacedObjectRepo[ViewMeta]):
         with self.session.client.stream(
             "POST",
             f"{self.base_url}/{namespace}/{path}",
+            params={"include_plans": "true"} if include_plans else None,
             timeout=request_timeout,
         ) as gpkg_response:
             if gpkg_response.status_code >= 400:

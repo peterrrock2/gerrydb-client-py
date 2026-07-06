@@ -350,6 +350,8 @@ def test_basic_view_with_graph_and_plan(
             locality=root_loc,
             layer=layer10,
             graph=view_graph,
+            # Plans are opt-in on renders.
+            include_plans=True,
         )
 
     land_df = land_view.to_df(plans=True, internal_points=True)

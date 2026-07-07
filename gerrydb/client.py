@@ -882,6 +882,7 @@ class WriteContext:
         include_geos: bool = True,
         allow_empty_polys: bool = False,
         force_duplicate_column: bool = False,
+        allow_local_updates: bool = False,
         namespace: Optional[str] = None,
         locality: Optional[Union[str, Locality]] = None,
         layer: Optional[Union[str, GeoLayer]] = None,
@@ -1013,7 +1014,7 @@ class WriteContext:
                 max_conns=max_conns,
             )
 
-        report = {"referenced": {}, "uploaded": []}
+        report = {"referenced": {}, "uploaded": [], "materialized": []}
         if not force_duplicate_column and locality is not None and layer is not None:
             columns, report = self.__reference_duplicate_columns(
                 df=df, columns=columns, namespace=namespace,
@@ -1057,11 +1058,28 @@ class WriteContext:
             }
         for df_col, col_meta in resolved.items():
             if col_meta is not None and col_meta.namespace != namespace:
+                # Materialization needs the LOCAL ref path; when the caller
+                # passed pre-resolved Column objects, only the source path is
+                # known, so divergence stays an error there.
+                if allow_local_updates and not isinstance(columns, dict):
+                    log.warning(
+                        "Materializing column '%s' (a reference to %s/%s) before "
+                        "a divergent upload.",
+                        df_col,
+                        col_meta.namespace,
+                        col_meta.path,
+                    )
+                    new_col = self.columns.materialize(df_col, namespace=namespace)
+                    resolved[df_col] = new_col
+                    column_map[normalize_path(df_col)] = new_col
+                    report["materialized"].append(df_col)
+                    continue
                 raise ValueError(
                     f"Column '{df_col}' resolves to a reference to "
                     f"'{col_meta.namespace}/{col_meta.path}'; values cannot be "
-                    "uploaded through a reference. Upload under a different "
-                    "column name to diverge from the referenced data."
+                    "uploaded through a reference. Pass allow_local_updates=True to "
+                    "materialize the reference into an owned column first, or "
+                    "upload under a different column name."
                 )
 
         log.debug("VALIDATING COLUMNS")
@@ -1126,7 +1144,7 @@ class WriteContext:
                     "hash_lo": lo,
                 }
             )
-        report = {"referenced": {}, "uploaded": []}
+        report = {"referenced": {}, "uploaded": [], "materialized": []}
         if not candidates:
             return columns, report
 

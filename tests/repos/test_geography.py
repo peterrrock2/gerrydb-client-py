@@ -228,3 +228,54 @@ def test_fork_geos_errors_409(httpx_mock):
                 source_namespace="test_namespace2",
                 source_layer_name="foo",
             )
+
+
+def test_fork_geos_refork_noop_warns(httpx_mock, caplog):
+    """A fork that creates nothing (server returned []) warns; a real fork does not."""
+    import logging
+
+    httpx_mock.add_response(
+        method="POST",
+        url="http://localhost:8000/api/v1/meta/",
+        json={
+            "uuid": "00000000-0000-0000-0000-000000000000",
+            "notes": "irrelevant",
+            "created_at": "2025-04-26T00:00:00Z",
+            "created_by": "test-user@example.com",
+        },
+    )
+
+    db = GerryDB(
+        host="localhost:8000",
+        key="dummy-key",
+        namespace="test_namespace",
+        cache_max_size_gb=0.001,
+    )
+    fork_url = (
+        "http://localhost:8000/api/v1/__geography_fork/test_namespace/bar/foo"
+        "?mode=compare&source_namespace=test_namespace2&source_layer=foo"
+        "&allow_extra_source_geos=False&allow_empty_polys=False"
+    )
+    logging.getLogger("gerrydb").addHandler(caplog.handler)
+
+    with caplog.at_level(logging.WARNING, logger="gerrydb"):
+        with db.context(notes="whatever") as ctx:
+            httpx_mock.add_response(method="POST", url=fork_url, json=["aa", "bb"])
+            ctx.geo.fork_geos(
+                path="bar",
+                namespace="test_namespace",
+                layer_name="foo",
+                source_namespace="test_namespace2",
+                source_layer_name="foo",
+            )
+            assert "created no new geographies" not in caplog.text
+
+            httpx_mock.add_response(method="POST", url=fork_url, json=[])
+            ctx.geo.fork_geos(
+                path="bar",
+                namespace="test_namespace",
+                layer_name="foo",
+                source_namespace="test_namespace2",
+                source_layer_name="foo",
+            )
+            assert "created no new geographies" in caplog.text

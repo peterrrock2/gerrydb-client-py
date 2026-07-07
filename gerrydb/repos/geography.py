@@ -416,3 +416,15 @@ class GeographyRepo(NamespacedObjectRepo[Geography]):
                     f"{e.response.json().get('detail', 'No details provided.')}",
                 )
             raise e
+
+        if not response.json():
+            log.warning(
+                "Fork of %s/%s/%s into %s/%s created no new geographies; the "
+                "target layer already contains every source geography "
+                "(expected when re-running a load).",
+                source_namespace,
+                path,
+                source_layer_name,
+                namespace,
+                layer_name,
+            )

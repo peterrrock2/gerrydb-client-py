@@ -137,12 +137,21 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
     @write_context
     @online
     def create_reference(
-        self, path: str, *, target_namespace: str, target_path: str, namespace: str
+        self,
+        path: str,
+        *,
+        target_namespace: str,
+        target_path: str,
+        namespace: str,
+        validate_paths: bool = False,
     ) -> dict:
         """Creates a reference in `namespace` to an existing column.
 
         References may only target columns in public namespaces (or the
-        caller's own); the referenced values are never copied.
+        caller's own); the referenced values are never copied. With
+        `validate_paths`, the server refuses the reference if the target
+        column carries current values on geography paths missing from
+        `namespace`.
         """
         response = self.ctx.client.post(
             f"/column-refs/{namespace}",
@@ -150,10 +159,111 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
                 "path": path,
                 "target_namespace": target_namespace,
                 "target_path": target_path,
+                "validate_paths": validate_paths,
             },
         )
         response.raise_for_status()
         return response.json()
+
+    @err("Failed to clone column")
+    @namespaced
+    @write_context
+    @online
+    def clone(
+        self,
+        path: Union[str, list[str]],
+        namespace: Optional[str] = None,
+        *,
+        from_namespace: str,
+        from_path: Union[str, list[str], None] = None,
+        validate_paths: bool = False,
+    ) -> Union[dict, list[dict]]:
+        """Clones one or more columns from another namespace as local references.
+
+        No values are copied: reads resolve through the source columns, and
+        each clone's content fingerprint equals its source's wherever the two
+        namespaces' geography paths align. The first write that changes a
+        clone's values materializes it into an owned column (see
+        `load_dataframe`'s `allow_local_updates` flow).
+
+        `from_path` defaults to the same name(s) as `path`; when both are
+        lists they pair up positionally. A single path returns one result
+        dict, a list returns a list.
+        """
+        paths = [path] if isinstance(path, str) else list(path)
+        if from_path is None:
+            from_paths = paths
+        elif isinstance(from_path, str):
+            from_paths = [from_path]
+        else:
+            from_paths = list(from_path)
+        if len(paths) != len(from_paths):
+            raise ValueError(
+                f"Got {len(paths)} clone path(s) but {len(from_paths)} source path(s)."
+            )
+        results = [
+            self.create_reference(
+                local,
+                target_namespace=from_namespace,
+                target_path=source,
+                namespace=namespace,
+                validate_paths=validate_paths,
+            )
+            for local, source in zip(paths, from_paths)
+        ]
+        return results[0] if isinstance(path, str) else results
+
+    @err("Failed to load columns")
+    def all(
+        self, namespace: Optional[str] = None, *, include_references: bool = False
+    ) -> list[Column]:
+        """Gets all columns in a namespace.
+
+        Plain listings hold only columns the namespace owns; with
+        `include_references`, cross-namespace references (e.g. clones) are
+        appended, labeled by their local path.
+        """
+        namespace = self.session.namespace if namespace is None else namespace
+        if not include_references:
+            return super().all(namespace=namespace)
+        response = self.session.client.get(
+            f"{self.base_url}/{namespace}?include_references=true"
+        )
+        response.raise_for_status()
+        return [self.schema(**obj) for obj in response.json()]
+
+    @err("Failed to materialize column reference")
+    @namespaced
+    @write_context
+    @online
+    def materialize(self, path: str, namespace: Optional[str] = None) -> Column:
+        """Materializes a cross-namespace reference into an owned column.
+
+        The server copies the source's current values onto same-path
+        geographies in `namespace` and repoints the namespace's refs;
+        existing views and template versions keep the source column.
+        """
+        response = self.ctx.client.post(f"{self.base_url}/{namespace}/{path}/materialize")
+        response.raise_for_status()
+        return self.schema(**response.json())
+
+    def _materialize_if_reference(self, path: str, namespace: str) -> None:
+        """Materializes `path` first if it resolves through a cross-namespace
+        reference (no-op for owned columns and unknown paths, whose errors
+        surface from the write itself)."""
+        try:
+            col = self.get(path, namespace=namespace)
+        except Exception:
+            return
+        if col is not None and col.namespace != namespace:
+            log.warning(
+                "Materializing '%s/%s' (a reference to %s/%s) before a divergent write.",
+                namespace,
+                path,
+                col.namespace,
+                col.path,
+            )
+            self.materialize(path, namespace=namespace)
 
     @err("Failed to set column values")
     @namespaced
@@ -166,6 +276,7 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
         *,
         col: Optional[Column] = None,
         values: dict[Union[str, Geography], Any],
+        allow_local_updates: bool = False,
     ) -> None:
         """Sets the values of a column on a collection of geographies.
 
@@ -190,6 +301,8 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
             raise ValueError("Either `path` or `col` must be provided.")
 
         path = col.path if col is not None else path
+        if allow_local_updates:
+            self._materialize_if_reference(path, namespace)
         clean_path = normalize_path(f"{self.base_url}/{namespace}/{path}")
 
         response = self.ctx.client.put(
@@ -218,6 +331,7 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
         col: Optional[Column] = None,
         values: dict[Union[str, Geography], Any],
         client: Optional[httpx.AsyncClient] = None,
+        allow_local_updates: bool = False,
     ) -> None:
         """Asynchronously sets the values of a column on a collection of geographies.
 
@@ -244,6 +358,9 @@ class ColumnRepo(NamespacedObjectRepo[Column]):
             raise ValueError("Either `path` or `col` must be provided.")
 
         path = col.path if col is not None else path
+        if allow_local_updates:
+            # Shared with the sync path: materialize-once, then no-op.
+            self._materialize_if_reference(path, namespace)
         clean_path = normalize_path(f"{self.base_url}/{namespace}/{path}")
 
         ephemeral_client = client is None
